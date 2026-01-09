@@ -17,6 +17,6 @@ export async function signIn({ email, password }) {
 }
 
 export async function signOut() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error && error.message !== "Auth session missing!") throw error;
 }

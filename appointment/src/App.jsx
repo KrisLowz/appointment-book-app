@@ -17,6 +17,19 @@ import { supabase } from './lib/supabaseClient';
 import DataStore from "./data";
 
 export default function App() {
+  const clearSupabaseAuthStorage = () => {
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith('sb-') || key.startsWith('supabase.auth.')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to clear auth storage', err);
+    }
+  };
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
@@ -43,7 +56,12 @@ export default function App() {
 
   const handleLogout = () => {
     if (supabaseSession) {
-      supabase.auth.signOut();
+      supabase.auth
+        .signOut({ scope: 'local' })
+        .catch(() => {})
+        .finally(() => clearSupabaseAuthStorage());
+    } else {
+      clearSupabaseAuthStorage();
     }
     setIsLoggedIn(false);
   };
@@ -109,6 +127,7 @@ export default function App() {
     activity,
     staff,
     holidays,
+    isReady,
     addPatient,
     updatePatient,
     deletePatient,
@@ -216,6 +235,10 @@ export default function App() {
 
 
   if (!authChecked || (supabaseSession?.user && profileLoading)) {
+    return null;
+  }
+
+  if (isLoggedIn && !isReady && authRole !== 'admin') {
     return null;
   }
 

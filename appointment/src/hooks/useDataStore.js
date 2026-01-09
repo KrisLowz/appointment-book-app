@@ -11,6 +11,7 @@ export default function useDataStore(activeClinicId) {
   const [activity, setActivity] = useState([]);
   const [staff, setStaff] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [isReady, setIsReady] = useState(false);
 
   const toPromise = (value) => (value && typeof value.then === 'function' ? value : Promise.resolve(value));
 
@@ -29,8 +30,20 @@ export default function useDataStore(activeClinicId) {
     let cancelled = false;
 
     const load = async () => {
+      setIsReady(false);
       if (activeClinicId) {
         DataStore.setActiveClinicId(activeClinicId);
+      } else {
+        setPatients([]);
+        setAppointments([]);
+        setRooms([]);
+        setTreatments([]);
+        setSettings(null);
+        setActivity([]);
+        setStaff([]);
+        setHolidays([]);
+        setIsReady(true);
+        return;
       }
 
       const [
@@ -63,6 +76,7 @@ export default function useDataStore(activeClinicId) {
       setActivity(activityData || []);
       setStaff(staffData || []);
       setHolidays(holidaysData || []);
+      setIsReady(true);
     };
 
     load().catch((error) => console.error('Failed to load data:', error));
@@ -222,6 +236,7 @@ export default function useDataStore(activeClinicId) {
     activity,
     staff,
     holidays,
+    isReady,
     addPatient,
     updatePatient,
     deletePatient,
