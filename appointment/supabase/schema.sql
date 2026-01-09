@@ -5,11 +5,14 @@ create extension if not exists "pgcrypto";
 create table if not exists public.clinics (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  slug text unique,
   city text,
   plan text,
   status text,
   created_at timestamptz not null default now()
 );
+
+create index if not exists clinics_slug_idx on public.clinics (slug);
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -82,6 +85,64 @@ create table if not exists public.appointments (
   notes text,
   created_at timestamptz not null default now()
 );
+
+create table if not exists public.appointment_requests (
+  id uuid primary key default gen_random_uuid(),
+  clinic_id uuid not null references public.clinics(id) on delete cascade,
+  patient_name text not null,
+  phone text,
+  email text,
+  preferred_dates date[] default '{}',
+  preferred_times text[] default '{}',
+  notes text,
+  patient_id_number text,
+  patient_dob date,
+  patient_gender text,
+  patient_tax_number text,
+  patient_address text,
+  emergency_contact_name text,
+  emergency_contact_phone text,
+  allergies text,
+  medical_conditions text,
+  medications text,
+  source text,
+  preferred_dentist_id uuid references public.staff(id) on delete set null,
+  insurance text,
+  patient_notes text,
+  appointment_date date,
+  appointment_start_time text,
+  appointment_duration int,
+  appointment_treatment_id uuid references public.treatments(id) on delete set null,
+  appointment_notes text,
+  is_new_patient boolean default true,
+  lookup_email text,
+  status text not null default 'pending',
+  created_at timestamptz not null default now(),
+  reviewed_at timestamptz
+);
+
+alter table public.appointment_requests
+  add column if not exists patient_id_number text,
+  add column if not exists patient_dob date,
+  add column if not exists patient_gender text,
+  add column if not exists patient_tax_number text,
+  add column if not exists patient_address text,
+  add column if not exists emergency_contact_name text,
+  add column if not exists emergency_contact_phone text,
+  add column if not exists allergies text,
+  add column if not exists medical_conditions text,
+  add column if not exists medications text,
+  add column if not exists source text,
+  add column if not exists preferred_dentist_id uuid references public.staff(id) on delete set null,
+  add column if not exists insurance text,
+  add column if not exists patient_notes text,
+  add column if not exists appointment_date date,
+  add column if not exists appointment_start_time text,
+  add column if not exists appointment_duration int,
+  add column if not exists appointment_treatment_id uuid references public.treatments(id) on delete set null,
+  add column if not exists appointment_notes text,
+  add column if not exists is_new_patient boolean default true,
+  add column if not exists lookup_email text;
 
 create table if not exists public.settings (
   id uuid primary key default gen_random_uuid(),
@@ -163,6 +224,7 @@ alter table public.appointments enable row level security;
 alter table public.settings enable row level security;
 alter table public.holidays enable row level security;
 alter table public.activity_log enable row level security;
+alter table public.appointment_requests enable row level security;
 
 create policy "clinics_admin_all"
   on public.clinics
@@ -174,6 +236,11 @@ create policy "clinics_member_select"
   on public.clinics
   for select
   using (id = public.current_clinic_id());
+
+create policy "clinics_public_select_by_slug"
+  on public.clinics
+  for select
+  using (slug is not null);
 
 create policy "profiles_admin_all"
   on public.profiles
@@ -203,6 +270,11 @@ create policy "staff_member_all"
   using (clinic_id = public.current_clinic_id() or public.is_admin())
   with check (clinic_id = public.current_clinic_id() or public.is_admin());
 
+create policy "staff_public_select_dentists"
+  on public.staff
+  for select
+  using (role = 'dentist');
+
 create policy "patients_member_all"
   on public.patients
   for all
@@ -221,9 +293,30 @@ create policy "treatments_member_all"
   using (clinic_id = public.current_clinic_id() or public.is_admin())
   with check (clinic_id = public.current_clinic_id() or public.is_admin());
 
+create policy "treatments_public_select"
+  on public.treatments
+  for select
+  using (true);
+
 create policy "appointments_member_all"
   on public.appointments
   for all
+  using (clinic_id = public.current_clinic_id() or public.is_admin())
+  with check (clinic_id = public.current_clinic_id() or public.is_admin());
+
+create policy "appointment_requests_public_insert"
+  on public.appointment_requests
+  for insert
+  with check (true);
+
+create policy "appointment_requests_member_select"
+  on public.appointment_requests
+  for select
+  using (clinic_id = public.current_clinic_id() or public.is_admin());
+
+create policy "appointment_requests_member_update"
+  on public.appointment_requests
+  for update
   using (clinic_id = public.current_clinic_id() or public.is_admin())
   with check (clinic_id = public.current_clinic_id() or public.is_admin());
 

@@ -11,6 +11,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
   const [activity, setActivity] = useState([]);
   const [staff, setStaff] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  const [appointmentRequests, setAppointmentRequests] = useState([]);
   const [isReady, setIsReady] = useState(false);
 
   const toPromise = (value) => (value && typeof value.then === 'function' ? value : Promise.resolve(value));
@@ -45,6 +46,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
         setActivity([]);
         setStaff([]);
         setHolidays([]);
+        setAppointmentRequests([]);
         return;
       }
 
@@ -57,6 +59,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
         activityData,
         staffData,
         holidaysData,
+        requestsData,
       ] = await Promise.all([
         toPromise(DataStore.getPatients()),
         toPromise(DataStore.getAppointments()),
@@ -66,6 +69,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
         toPromise(DataStore.getActivityLog()),
         toPromise(DataStore.getStaff()),
         toPromise(DataStore.getHolidays()),
+        toPromise(DataStore.getAppointmentRequests()),
       ]);
 
       if (cancelled) return;
@@ -78,6 +82,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
       setActivity(activityData || []);
       setStaff(staffData || []);
       setHolidays(holidaysData || []);
+      setAppointmentRequests(requestsData || []);
       setIsReady(true);
     };
 
@@ -96,6 +101,8 @@ export default function useDataStore(activeClinicId, enabled = true) {
   const refreshStaff = () => handleAsync(DataStore.getStaff(), (data) => setStaff(data || []));
   const refreshHolidays = () => handleAsync(DataStore.getHolidays(), (data) => setHolidays(data || []));
   const refreshActivity = () => handleAsync(DataStore.getActivityLog(), (data) => setActivity(data || []));
+  const refreshRequests = () =>
+    handleAsync(DataStore.getAppointmentRequests(), (data) => setAppointmentRequests(data || []));
 
   const addPatient = (patient) =>
     handleAsync(DataStore.addPatient(patient), () => {
@@ -227,6 +234,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
       refreshStaff();
       refreshHolidays();
       refreshActivity();
+      refreshRequests();
     });
 
   return {
@@ -238,6 +246,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
     activity,
     staff,
     holidays,
+    appointmentRequests,
     isReady,
     addPatient,
     updatePatient,
@@ -260,5 +269,11 @@ export default function useDataStore(activeClinicId, enabled = true) {
     updateHoliday,
     deleteHoliday,
     clearAll,
+    refreshRequests,
+    updateAppointmentRequest: (id, updates) =>
+      handleAsync(DataStore.updateAppointmentRequest(id, updates), () => {
+        refreshRequests();
+        refreshActivity();
+      }),
   };
 }

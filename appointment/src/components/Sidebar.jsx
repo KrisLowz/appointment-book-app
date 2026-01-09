@@ -1,8 +1,9 @@
-﻿export default function Sidebar({ view, onChange, theme, setTheme, onLogout }) {
+export default function Sidebar({ view, onChange, theme, setTheme, onLogout, bookingLink }) {
   const items = [
     { id: 'calendar', label: 'Calendar', icon: 'calendar' },
     { id: 'today', label: 'Today', icon: 'clock' },
     { id: 'patients', label: 'Patients', icon: 'users' },
+    { id: 'requests', label: 'Requests', icon: 'inbox' },
     { id: 'settings', label: 'Settings', icon: 'gear' },
     { id: 'reports', label: 'Reports', icon: 'bar' },
     { id: 'activity', label: 'Activity', icon: 'pulse' },
@@ -33,6 +34,13 @@
             <circle cx="9" cy="7" r="4" />
             <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
             <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          </svg>
+        );
+      case 'inbox':
+        return (
+          <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+            <path d="M5.45 5h13.1l2.45 7v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-7l2.45-7z" />
           </svg>
         );
       default:
@@ -81,6 +89,34 @@
         ))}
       </nav>
       <div className="sidebar-footer">
+        <div className="sidebar-booking">
+          <div>
+            <div className="sidebar-theme-title">Booking link</div>
+            <div className="sidebar-theme-subtitle">Share with patients</div>
+          </div>
+          <div className="sidebar-booking-row">
+            <input
+              className="form-input sidebar-booking-input"
+              value={bookingLink || 'Set clinic slug to enable link'}
+              readOnly
+            />
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              disabled={!bookingLink}
+              onClick={() => {
+                if (!bookingLink) return;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(bookingLink);
+                } else {
+                  window.prompt('Copy booking link:', bookingLink);
+                }
+              }}
+            >
+              Copy
+            </button>
+          </div>
+        </div>
         <div className="sidebar-theme">
           <div>
             <div className="sidebar-theme-title">Theme</div>
@@ -103,4 +139,5 @@
     </aside>
   );
 }
+
 

@@ -9,6 +9,7 @@ import * as Settings from "./datastore.supabase.settings";
 import * as Holidays from "./datastore.supabase.holidays";
 import * as Appointments from "./datastore.supabase.appointments";
 import * as Activity from "./datastore.supabase.activity";
+import * as Requests from "./datastore.supabase.requests";
 
 const ACTIVE_CLINIC_KEY = "appointmentApp_activeClinic";
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -232,6 +233,26 @@ const DataStore = {
     return true;
   },
 
+  // ============ REQUESTS ============
+  async getAppointmentRequests(clinicId) {
+    const activeClinic = getClinicId(clinicId);
+    if (!activeClinic) return [];
+    return Requests.getAppointmentRequests(activeClinic);
+  },
+
+  async updateAppointmentRequest(id, updates) {
+    const activeClinic = requireActiveClinic(getClinicId());
+    const updated = await Requests.updateAppointmentRequest(id, {
+      ...updates,
+      reviewedAt: updates.reviewedAt || new Date().toISOString(),
+    });
+    await Activity.addActivityLog(activeClinic, {
+      type: "request_updated",
+      description: `Updated request: ${updated.patientName || updated.id} (${updated.status})`,
+    });
+    return updated;
+  },
+
   // ============ ROOMS ============
   async getRooms(clinicId) {
     const activeClinic = getClinicId(clinicId);
@@ -419,6 +440,7 @@ const DataStore = {
     const activeClinic = requireActiveClinic(getClinicId());
     const tables = [
       "appointments",
+      "appointment_requests",
       "patients",
       "staff",
       "rooms",

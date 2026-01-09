@@ -8,13 +8,21 @@ import PatientsView from './components/PatientsView';
 import SettingsView from './components/SettingsView';
 import ReportsView from './components/ReportsView';
 import ActivityView from './components/ActivityView';
+import RequestsView from './components/RequestsView';
 import AppointmentForm from './components/AppointmentForm';
 import PatientModal from './components/PatientModal';
 import LoginView from './components/LoginView';
 import AdminDashboard from './components/AdminDashboard';
+import PublicBookingView from './components/PublicBookingView';
 import { todayISO } from './utils/date';
 import { supabase } from './lib/supabaseClient';
 import DataStore from "./data";
+
+const getBookingSlugFromPath = () => {
+  const parts = window.location.pathname.split('/').filter(Boolean);
+  if (parts[0] === 'book' && parts[1]) return parts[1];
+  return null;
+};
 
 export default function App() {
   const clearSupabaseAuthStorage = () => {
@@ -53,6 +61,7 @@ export default function App() {
   const [supabaseSession, setSupabaseSession] = useState(null);
   const [activeClinicId, setActiveClinicId] = useState(() => DataStore.getActiveClinicId());
   const [profile, setProfile] = useState(null);
+  const [bookingLink, setBookingLink] = useState('');
 
   const handleLogout = () => {
     if (supabaseSession) {
@@ -117,6 +126,31 @@ export default function App() {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (!activeClinicId) {
+      setBookingLink('');
+      return;
+    }
+    let isActive = true;
+    const loadClinicSlug = async () => {
+      const { data, error } = await supabase
+        .from('clinics')
+        .select('slug')
+        .eq('id', activeClinicId)
+        .single();
+      if (!isActive) return;
+      if (error || !data?.slug) {
+        setBookingLink('');
+        return;
+      }
+      setBookingLink(`${window.location.origin}/book/${data.slug}`);
+    };
+    loadClinicSlug();
+    return () => {
+      isActive = false;
+    };
+  }, [activeClinicId]);
+
   const dataEnabled = Boolean(isLoggedIn && authRole !== 'admin' && activeClinicId);
 
   // Original single-file state wiring preserved, now split into modules.
@@ -129,6 +163,7 @@ export default function App() {
     activity,
     staff,
     holidays,
+    appointmentRequests,
     isReady,
     addPatient,
     updatePatient,
@@ -151,6 +186,8 @@ export default function App() {
     updateHoliday,
     deleteHoliday,
     clearAll,
+    updateAppointmentRequest,
+    refreshRequests,
   } = useDataStore(activeClinicId, dataEnabled);
 
   const [view, setView] = useState('calendar');
@@ -160,6 +197,7 @@ export default function App() {
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [appointmentDefaults, setAppointmentDefaults] = useState(null);
+  const bookingSlug = getBookingSlugFromPath();
 
   const viewTitle = {
     calendar: 'Calendar',
@@ -168,6 +206,7 @@ export default function App() {
     settings: 'Settings',
     reports: 'Reports',
     activity: 'Activity Log',
+    requests: 'Requests',
   }[view];
 
   const handleSaveAppointment = (data) => {
@@ -235,6 +274,9 @@ export default function App() {
     updateAppointment(appointment.id, updates);
   };
 
+  if (bookingSlug) {
+    return <PublicBookingView clinicSlug={bookingSlug} />;
+  }
 
   if (!authChecked || (supabaseSession?.user && profileLoading)) {
     return null;
@@ -270,7 +312,14 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <Sidebar view={view} onChange={setView} theme={theme} setTheme={setTheme} onLogout={handleLogout} />
+      <Sidebar
+        view={view}
+        onChange={setView}
+        theme={theme}
+        setTheme={setTheme}
+        onLogout={handleLogout}
+        bookingLink={bookingLink}
+      />
       <main className="main-content">
         <Header title={viewTitle} onNewAppointment={() => setShowAppointmentModal(true)} />
         <div className="content">
@@ -348,6 +397,18 @@ export default function App() {
             <ReportsView appointments={appointments} patients={patients} treatments={treatments} staff={staff} />
           )}
           {view === 'activity' && <ActivityView activity={activity} />}
+          {view === 'requests' && (
+            <RequestsView
+              appointmentRequests={appointmentRequests}
+              patients={patients}
+              treatments={treatments}
+              settings={settings}
+              addPatient={addPatient}
+              addAppointment={addAppointment}
+              updateAppointmentRequest={updateAppointmentRequest}
+              refreshRequests={refreshRequests}
+            />
+          )}
         </div>
       </main>
 
