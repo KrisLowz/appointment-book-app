@@ -1,0 +1,58 @@
+import { supabase } from "../lib/supabaseClient";
+
+const mapClinic = (row) => ({
+  id: row.id,
+  name: row.name,
+  city: row.city || "",
+  plan: row.plan || "",
+  status: row.status || "",
+  createdAt: row.created_at,
+});
+
+export async function getClinics() {
+  const { data, error } = await supabase
+    .from("clinics")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data || []).map(mapClinic);
+}
+
+export async function addClinic(clinic) {
+  const payload = {
+    name: clinic.name,
+    city: clinic.city || null,
+    plan: clinic.plan || null,
+    status: clinic.status || null,
+  };
+  const { data, error } = await supabase
+    .from("clinics")
+    .insert(payload)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return mapClinic(data);
+}
+
+export async function updateClinic(id, updates) {
+  const payload = {
+    ...(updates.name !== undefined ? { name: updates.name } : {}),
+    ...(updates.city !== undefined ? { city: updates.city } : {}),
+    ...(updates.plan !== undefined ? { plan: updates.plan } : {}),
+    ...(updates.status !== undefined ? { status: updates.status } : {}),
+  };
+  const { data, error } = await supabase
+    .from("clinics")
+    .update(payload)
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) throw error;
+  return mapClinic(data);
+}
+
+export async function deleteClinic(id) {
+  const { error } = await supabase.from("clinics").delete().eq("id", id);
+  if (error) throw error;
+  return true;
+}
