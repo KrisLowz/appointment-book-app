@@ -117,6 +117,8 @@ export default function App() {
     }
   }, [profile]);
 
+  const dataEnabled = Boolean(isLoggedIn && authRole !== 'admin' && activeClinicId);
+
   // Original single-file state wiring preserved, now split into modules.
   const {
     patients,
@@ -149,7 +151,7 @@ export default function App() {
     updateHoliday,
     deleteHoliday,
     clearAll,
-  } = useDataStore(activeClinicId);
+  } = useDataStore(activeClinicId, dataEnabled);
 
   const [view, setView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -238,7 +240,7 @@ export default function App() {
     return null;
   }
 
-  if (isLoggedIn && !isReady && authRole !== 'admin') {
+  if (isLoggedIn && !isReady && authRole !== 'admin' && activeClinicId) {
     return null;
   }
 

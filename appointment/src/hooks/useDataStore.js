@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import DataStore from '../data';
 
 // Data hook wrapping DataStore (localStorage/Supabase)
-export default function useDataStore(activeClinicId) {
+export default function useDataStore(activeClinicId, enabled = true) {
   const [patients, setPatients] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -31,6 +31,9 @@ export default function useDataStore(activeClinicId) {
 
     const load = async () => {
       setIsReady(false);
+      if (!enabled) {
+        return;
+      }
       if (activeClinicId) {
         DataStore.setActiveClinicId(activeClinicId);
       } else {
@@ -42,7 +45,6 @@ export default function useDataStore(activeClinicId) {
         setActivity([]);
         setStaff([]);
         setHolidays([]);
-        setIsReady(true);
         return;
       }
 
@@ -84,7 +86,7 @@ export default function useDataStore(activeClinicId) {
     return () => {
       cancelled = true;
     };
-  }, [activeClinicId]);
+  }, [activeClinicId, enabled]);
 
   const refreshAppointments = () => handleAsync(DataStore.getAppointments(), (data) => setAppointments(data || []));
   const refreshPatients = () => handleAsync(DataStore.getPatients(), (data) => setPatients(data || []));
