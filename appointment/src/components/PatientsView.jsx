@@ -1,6 +1,8 @@
-﻿import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatTime } from '../utils/time';
 import { getInitials } from '../utils/people';
+
+const PAGE_SIZE = 8;
 
 export default function PatientsView({
   patients,
@@ -12,6 +14,7 @@ export default function PatientsView({
 }) {
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState(null);
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     if (!query) return patients;
@@ -23,6 +26,18 @@ export default function PatientsView({
         (p.phone && p.phone.includes(q))
     );
   }, [patients, query]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pagedPatients = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, page]);
 
   const upcomingAndHistory = (patientId) => {
     const all = appointments
@@ -67,7 +82,7 @@ export default function PatientsView({
         </button>
       </div>
       <div className="patient-list">
-        {filtered.map((p) => {
+        {pagedPatients.map((p) => {
           const appointmentCount = appointments.filter((a) => String(a.patientId) === String(p.id)).length;
           const hasAllergies = p.allergies && p.allergies.trim() !== '';
           const hasMedical = p.medicalConditions && p.medicalConditions.trim() !== '';
@@ -218,7 +233,29 @@ export default function PatientsView({
           </div>
         )}
       </div>
+      {filtered.length > PAGE_SIZE && (
+        <div className="patient-pagination">
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          >
+            Previous
+          </button>
+          <div className="patient-page-indicator">
+            Page {page} of {totalPages}
+          </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
