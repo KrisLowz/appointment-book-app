@@ -1,15 +1,31 @@
-﻿import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { todayISO, formatDayLong } from '../utils/date';
 import { addMinutes, formatTime } from '../utils/time';
 import { getInitials } from '../utils/people';
 
+const PAGE_SIZE = 4;
+
 export default function TodayView({ appointments, patients, rooms, treatments, onAppointmentSelect }) {
   const isoToday = todayISO();
+  const [page, setPage] = useState(1);
   const todaysAppointments = useMemo(() => {
     return appointments
       .filter((a) => a.date === isoToday)
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
-  }, [appointments]);
+  }, [appointments, isoToday]);
+
+  const totalPages = Math.max(1, Math.ceil(todaysAppointments.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const pagedAppointments = useMemo(() => {
+    const start = (page - 1) * PAGE_SIZE;
+    return todaysAppointments.slice(start, start + PAGE_SIZE);
+  }, [todaysAppointments, page]);
 
   const patientName = (id) => {
     const p = patients.find((pt) => pt.id === id);
@@ -58,7 +74,7 @@ export default function TodayView({ appointments, patients, rooms, treatments, o
           <div className="today-summary-card">
             <div className="today-summary-label">Next</div>
             <div className="today-summary-value">
-              {nextAppointment ? formatTime(nextAppointment.startTime) : '—'}
+              {nextAppointment ? formatTime(nextAppointment.startTime) : '-'}
             </div>
           </div>
         </div>
@@ -71,7 +87,7 @@ export default function TodayView({ appointments, patients, rooms, treatments, o
             <p>Schedule a new appointment to see it here.</p>
           </div>
         )}
-        {todaysAppointments.map((apt) => {
+        {pagedAppointments.map((apt) => {
           const patient = patientDetails(apt.patientId);
           return (
             <div
@@ -114,6 +130,30 @@ export default function TodayView({ appointments, patients, rooms, treatments, o
           );
         })}
       </div>
+
+      {todaysAppointments.length > PAGE_SIZE && (
+        <div className="today-pagination">
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            disabled={page <= 1}
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+          >
+            Previous
+          </button>
+          <div className="today-page-indicator">
+            Page {page} of {totalPages}
+          </div>
+          <button
+            className="btn btn-secondary btn-sm"
+            type="button"
+            disabled={page >= totalPages}
+            onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

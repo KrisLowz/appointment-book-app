@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import DataStore from '../data';
+import { updatePatient as updatePatientRecord } from '../data/datastore.supabase.patients';
+import { updateStaff as updateStaffRecord } from '../data/datastore.supabase.staff';
+import { updateRoom as updateRoomRecord } from '../data/datastore.supabase.rooms';
+import { updateTreatment as updateTreatmentRecord } from '../data/datastore.supabase.treatments';
 import Modal from './Modal';
 import { todayISO } from '../utils/date';
 
 const planOptions = ['Starter', 'Growth', 'Pro', 'Enterprise'];
 const statusOptions = ['active', 'trial', 'paused'];
+const ADMIN_TAB_KEY = 'appointmentApp_adminTab';
 
 export default function AdminDashboard({ onLogout }) {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem(ADMIN_TAB_KEY) || 'overview');
   const [clinics, setClinics] = useState([]);
   const [users, setUsers] = useState([]);
   const [adminActivity, setAdminActivity] = useState([]);
@@ -20,6 +25,10 @@ export default function AdminDashboard({ onLogout }) {
   const [modalState, setModalState] = useState({ type: null, mode: 'new' });
   const [clinicForm, setClinicForm] = useState({ id: '', name: '', city: '', plan: 'Starter', status: 'active' });
   const [userForm, setUserForm] = useState({ id: '', username: '', password: '', role: 'dentist', clinicId: '', name: '', status: 'active' });
+  const [detailModal, setDetailModal] = useState({ open: false, clinicId: '', type: '' });
+  const [detailForm, setDetailForm] = useState({});
+  const [detailSaving, setDetailSaving] = useState(false);
+  const [detailError, setDetailError] = useState('');
 
   const refresh = async () => {
     setLoading(true);
@@ -75,6 +84,10 @@ export default function AdminDashboard({ onLogout }) {
   useEffect(() => {
     refresh();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(ADMIN_TAB_KEY, activeTab);
+  }, [activeTab]);
 
   const clinicSummaries = useMemo(() => {
     return clinics.map((clinic) => {
@@ -158,6 +171,109 @@ export default function AdminDashboard({ onLogout }) {
   };
 
   const closeModal = () => setModalState({ type: null, mode: 'new' });
+
+  const openDetailModal = (clinicId, type) => {
+    setDetailModal({ open: true, clinicId, type });
+    setDetailForm({});
+    setDetailError('');
+  };
+
+  const closeDetailModal = () => {
+    setDetailModal({ open: false, clinicId: '', type: '' });
+    setDetailForm({});
+    setDetailError('');
+  };
+
+  const getDetailItems = () => {
+    const detail = clinicDetails[detailModal.clinicId] || {};
+    switch (detailModal.type) {
+      case 'patients':
+        return detail.patients || [];
+      case 'staff':
+        return detail.staff || [];
+      case 'rooms':
+        return detail.rooms || [];
+      case 'treatments':
+        return detail.treatments || [];
+      default:
+        return [];
+    }
+  };
+
+  const startEdit = (item) => {
+    if (!item) return;
+    switch (detailModal.type) {
+      case 'patients':
+        setDetailForm({
+          id: item.id,
+          name: item.name || '',
+          phone: item.phone || '',
+          email: item.email || '',
+          address: item.address || '',
+        });
+        break;
+      case 'staff':
+        setDetailForm({
+          id: item.id,
+          name: item.name || '',
+          role: item.role || 'dentist',
+          phone: item.phone || '',
+          specialty: item.specialty || '',
+        });
+        break;
+      case 'rooms':
+        setDetailForm({
+          id: item.id,
+          name: item.name || '',
+          color: item.color || '',
+        });
+        break;
+      case 'treatments':
+        setDetailForm({
+          id: item.id,
+          name: item.name || '',
+          duration: item.duration || 0,
+          color: item.color || '',
+        });
+        break;
+      default:
+        setDetailForm({});
+    }
+  };
+
+  const handleDetailSave = async () => {
+    if (!detailForm.id) return;
+    setDetailSaving(true);
+    setDetailError('');
+    try {
+      switch (detailModal.type) {
+        case 'patients':
+          await updatePatientRecord(detailForm.id, detailForm);
+          break;
+        case 'staff':
+          await updateStaffRecord(detailForm.id, detailForm);
+          break;
+        case 'rooms':
+          await updateRoomRecord(detailForm.id, detailForm);
+          break;
+        case 'treatments':
+          await updateTreatmentRecord(detailForm.id, {
+            ...detailForm,
+            duration: Number(detailForm.duration) || 0,
+          });
+          break;
+        default:
+          break;
+      }
+      await refresh();
+      setDetailForm({});
+    } catch (err) {
+      setDetailError(err.message || 'Failed to save changes.');
+      console.error(err);
+    } finally {
+      setDetailSaving(false);
+    }
+  };
 
   const handleClinicSubmit = async () => {
     if (!clinicForm.name.trim()) {
@@ -370,26 +486,46 @@ export default function AdminDashboard({ onLogout }) {
                       <div className="admin-detail-section">
                         <div className="admin-detail-title">Clinic Overview</div>
                         <div className="admin-grid">
-                          <div className="admin-card">
+                          <button
+                            type="button"
+                            className="admin-card admin-card-clickable"
+                            onClick={() => openDetailModal(clinic.id, 'patients')}
+                          >
                             <div className="admin-card-label">Patients</div>
                             <div className="admin-card-value">{clinic.stats.patients}</div>
-                          </div>
-                          <div className="admin-card">
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-card admin-card-clickable"
+                            onClick={() => openDetailModal(clinic.id, 'appointments')}
+                          >
                             <div className="admin-card-label">Appointments</div>
                             <div className="admin-card-value">{clinic.stats.appointments}</div>
-                          </div>
-                          <div className="admin-card">
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-card admin-card-clickable"
+                            onClick={() => openDetailModal(clinic.id, 'staff')}
+                          >
                             <div className="admin-card-label">Staff</div>
                             <div className="admin-card-value">{clinic.stats.staff}</div>
-                          </div>
-                          <div className="admin-card">
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-card admin-card-clickable"
+                            onClick={() => openDetailModal(clinic.id, 'rooms')}
+                          >
                             <div className="admin-card-label">Rooms</div>
                             <div className="admin-card-value">{clinic.stats.rooms}</div>
-                          </div>
-                          <div className="admin-card">
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-card admin-card-clickable"
+                            onClick={() => openDetailModal(clinic.id, 'treatments')}
+                          >
                             <div className="admin-card-label">Treatments</div>
                             <div className="admin-card-value">{clinic.stats.treatments}</div>
-                          </div>
+                          </button>
                         </div>
                       </div>
 
@@ -747,6 +883,144 @@ export default function AdminDashboard({ onLogout }) {
             <button type="button" className="btn btn-primary" onClick={handleUserSubmit}>
               {modalState.mode === 'edit' ? 'Save User' : 'Add User'}
             </button>
+          </div>
+        </Modal>
+      )}
+      {detailModal.open && (
+        <Modal
+          title={`Manage ${detailModal.type}`}
+          onClose={closeDetailModal}
+        >
+          <div className="modal-body">
+            {detailError && <div className="form-error" style={{ marginBottom: 12 }}>{detailError}</div>}
+            {detailModal.type === 'appointments' ? (
+              <div className="empty-state">Appointment edits are available in the clinic view.</div>
+            ) : (
+              <>
+                <div className="admin-entity-list">
+                  {getDetailItems().map((item) => (
+                    <div key={item.id} className="admin-entity-item">
+                      <div>
+                        <div className="admin-row-title">{item.name || item.email || 'Unnamed'}</div>
+                        <div className="admin-row-sub">
+                          {detailModal.type === 'patients' && (item.email || item.phone || 'No contact')}
+                          {detailModal.type === 'staff' && `${item.role || 'staff'} ${item.phone ? `• ${item.phone}` : ''}`}
+                          {detailModal.type === 'rooms' && (item.color || 'No color')}
+                          {detailModal.type === 'treatments' && `${item.duration || 0} mins`}
+                        </div>
+                      </div>
+                      <button className="btn btn-secondary btn-sm" type="button" onClick={() => startEdit(item)}>
+                        Edit
+                      </button>
+                    </div>
+                  ))}
+                  {getDetailItems().length === 0 && (
+                    <div className="empty-state">No records yet</div>
+                  )}
+                </div>
+
+                {detailForm.id && (
+                  <div className="admin-entity-form">
+                    <div className="admin-detail-title">Edit details</div>
+                    {detailModal.type === 'patients' && (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Name</label>
+                          <input className="form-input" value={detailForm.name} onChange={(e) => setDetailForm({ ...detailForm, name: e.target.value })} />
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">Phone</label>
+                            <input className="form-input" value={detailForm.phone} onChange={(e) => setDetailForm({ ...detailForm, phone: e.target.value })} />
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Email</label>
+                            <input className="form-input" value={detailForm.email} onChange={(e) => setDetailForm({ ...detailForm, email: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Address</label>
+                          <input className="form-input" value={detailForm.address} onChange={(e) => setDetailForm({ ...detailForm, address: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+
+                    {detailModal.type === 'staff' && (
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Name</label>
+                          <input className="form-input" value={detailForm.name} onChange={(e) => setDetailForm({ ...detailForm, name: e.target.value })} />
+                        </div>
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label className="form-label">Role</label>
+                            <select className="form-select" value={detailForm.role} onChange={(e) => setDetailForm({ ...detailForm, role: e.target.value })}>
+                              <option value="dentist">Dentist</option>
+                              <option value="nurse">Nurse</option>
+                              <option value="assistant">Assistant</option>
+                            </select>
+                          </div>
+                          <div className="form-group">
+                            <label className="form-label">Phone</label>
+                            <input className="form-input" value={detailForm.phone} onChange={(e) => setDetailForm({ ...detailForm, phone: e.target.value })} />
+                          </div>
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Specialty</label>
+                          <input className="form-input" value={detailForm.specialty} onChange={(e) => setDetailForm({ ...detailForm, specialty: e.target.value })} />
+                        </div>
+                      </>
+                    )}
+
+                    {detailModal.type === 'rooms' && (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Name</label>
+                          <input className="form-input" value={detailForm.name} onChange={(e) => setDetailForm({ ...detailForm, name: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Color</label>
+                          <input className="form-input" value={detailForm.color} onChange={(e) => setDetailForm({ ...detailForm, color: e.target.value })} />
+                        </div>
+                      </div>
+                    )}
+
+                    {detailModal.type === 'treatments' && (
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label className="form-label">Name</label>
+                          <input className="form-input" value={detailForm.name} onChange={(e) => setDetailForm({ ...detailForm, name: e.target.value })} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Duration (mins)</label>
+                          <input
+                            className="form-input"
+                            type="number"
+                            min="0"
+                            value={detailForm.duration}
+                            onChange={(e) => setDetailForm({ ...detailForm, duration: e.target.value })}
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Color</label>
+                          <input className="form-input" value={detailForm.color} onChange={(e) => setDetailForm({ ...detailForm, color: e.target.value })} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-secondary" onClick={closeDetailModal}>
+              Close
+            </button>
+            {detailForm.id && detailModal.type !== 'appointments' && (
+              <button type="button" className="btn btn-primary" onClick={handleDetailSave} disabled={detailSaving}>
+                {detailSaving ? 'Saving...' : 'Save Changes'}
+              </button>
+            )}
           </div>
         </Modal>
       )}
