@@ -42,6 +42,10 @@ export default function PublicBookingView({ clinicSlug }) {
   const [step, setStep] = useState(0);
   const [patientType, setPatientType] = useState('');
   const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupPatient, setLookupPatient] = useState(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState('');
+  const [confirmMatch, setConfirmMatch] = useState(false);
   const [patient, setPatient] = useState({ ...emptyPatient });
   const [appointment, setAppointment] = useState({ ...emptyAppointment });
 
@@ -99,6 +103,58 @@ export default function PublicBookingView({ clinicSlug }) {
   }, [clinic]);
 
   useEffect(() => {
+    if (patientType !== 'existing') {
+      setLookupPatient(null);
+      setLookupError('');
+      setConfirmMatch(false);
+      return;
+    }
+    const email = lookupEmail.trim().toLowerCase();
+    if (!clinic?.id || email.length < 5 || !email.includes('@')) {
+      setLookupPatient(null);
+      setLookupError('');
+      setConfirmMatch(false);
+      return;
+    }
+    setLookupLoading(true);
+    setLookupError('');
+    const timer = setTimeout(async () => {
+      const { data, error: lookupErr } = await supabase
+        .from('patients')
+        .select('id, name, phone, email, id_number, address')
+        .eq('clinic_id', clinic.id)
+        .ilike('email', email)
+        .maybeSingle();
+      if (lookupErr) {
+        setLookupPatient(null);
+        setLookupError('Unable to verify your email right now.');
+        setConfirmMatch(false);
+        setLookupLoading(false);
+        return;
+      }
+      if (!data) {
+        setLookupPatient(null);
+        setLookupError('No patient record found for this email.');
+        setConfirmMatch(false);
+        setLookupLoading(false);
+        return;
+      }
+      setLookupPatient({
+        id: data.id,
+        name: data.name,
+        phone: data.phone || '',
+        email: data.email || '',
+        idNumber: data.id_number || '',
+        address: data.address || '',
+      });
+      setLookupError('');
+      setConfirmMatch(false);
+      setLookupLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [clinic, lookupEmail, patientType]);
+
+  useEffect(() => {
     if (!appointment.treatmentId) return;
     const selected = treatments.find((t) => String(t.id) === String(appointment.treatmentId));
     if (selected && typeof selected.duration === 'number') {
@@ -127,6 +183,18 @@ export default function PublicBookingView({ clinicSlug }) {
       }
       if (!lookupEmail.includes('@')) {
         setError('Please enter a valid email.');
+        return false;
+      }
+      if (lookupLoading) {
+        setError('Checking your email. Please wait.');
+        return false;
+      }
+      if (!lookupPatient) {
+        setError(lookupError || 'No patient record found.');
+        return false;
+      }
+      if (!confirmMatch) {
+        setError('Please confirm your patient details before continuing.');
         return false;
       }
       return true;
@@ -311,17 +379,59 @@ export default function PublicBookingView({ clinicSlug }) {
               )}
 
               {step === 1 && patientType === 'existing' && (
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input
-                    className="form-input"
-                    type="email"
-                    value={lookupEmail}
-                    onChange={(event) => setLookupEmail(event.target.value)}
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input
+                      className="form-input"
+                      type="email"
+                      value={lookupEmail}
+                      onChange={(event) => {
+                        setLookupEmail(event.target.value);
+                        setConfirmMatch(false);
+                      }}
+                      placeholder="you@example.com"
+                      required
+                    />
+                    {lookupLoading && <div className="form-hint">Checking your record...</div>}
+                    {!lookupLoading && lookupError && <div className="form-error">{lookupError}</div>}
+                  </div>
+                  {lookupPatient && (
+                    <div className="booking-confirm-card">
+                      <div className="booking-confirm-title">Is this you?</div>
+                      <div className="booking-confirm-grid">
+                        <div>
+                          <div className="booking-summary-label">Name</div>
+                          <div>{lookupPatient.name}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">Phone</div>
+                          <div>{lookupPatient.phone || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">Email</div>
+                          <div>{lookupPatient.email}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">IC/ID</div>
+                          <div>{lookupPatient.idNumber || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">Address</div>
+                          <div>{lookupPatient.address || '-'}</div>
+                        </div>
+                      </div>
+                      <label className="booking-confirm-check">
+                        <input
+                          type="checkbox"
+                          checked={confirmMatch}
+                          onChange={(event) => setConfirmMatch(event.target.checked)}
+                        />
+                        This is my record
+                      </label>
+                    </div>
+                  )}
+                </>
               )}
 
               {step === 1 && patientType === 'new' && (

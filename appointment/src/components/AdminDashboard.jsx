@@ -718,15 +718,18 @@ export default function AdminDashboard({ onLogout }) {
           <div className="admin-panel">
             <div className="admin-panel-header">
               <div className="admin-panel-title">User Accounts</div>
-              {DataStore.canCreateUsers && (
-                <button className="btn btn-primary btn-sm" onClick={() => openUserModal()}>
-                  + Add User
-                </button>
-              )}
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => openUserModal()}
+                disabled={!DataStore.canCreateUsers}
+                title={DataStore.canCreateUsers ? 'Create user' : 'Enable VITE_ENABLE_ADMIN_CREATE_USERS'}
+              >
+                + Create User
+              </button>
             </div>
             {!DataStore.canCreateUsers && (
               <div className="form-hint" style={{ marginBottom: 12 }}>
-                Create users in Supabase Auth, then assign role/clinic here.
+                Create users in Supabase Auth, or set VITE_ENABLE_ADMIN_CREATE_USERS=true to enable this button.
               </div>
             )}
             <div className="admin-list">

@@ -24,7 +24,7 @@ const requireActiveClinic = (clinicId) => {
 
 const DataStore = {
   useSupabase: true,
-  canCreateUsers: false,
+  canCreateUsers: import.meta.env.VITE_ENABLE_ADMIN_CREATE_USERS === "true",
 
   init() {},
 
@@ -116,8 +116,36 @@ const DataStore = {
     return Profiles.getProfiles();
   },
 
-  async addUser() {
-    throw new Error("Create users via Supabase Auth; client cannot create auth users.");
+  async addUser(user) {
+    if (!DataStore.canCreateUsers) {
+      throw new Error("Create users via Supabase Auth; client cannot create auth users.");
+    }
+    let { data: sessionData } = await supabase.auth.getSession();
+    let accessToken = sessionData?.session?.access_token;
+    if (!accessToken) {
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        throw new Error("Session expired. Please log in again.");
+      }
+      sessionData = refreshed;
+      accessToken = refreshed?.session?.access_token;
+    }
+    if (!accessToken) {
+      throw new Error("No active session. Please log in again.");
+    }
+    const payload = {
+      email: user.username || user.email,
+      password: user.password,
+      fullName: user.name || "",
+      role: user.role || "dentist",
+      clinicId: user.clinicId || null,
+    };
+    const { data, error } = await supabase.functions.invoke("admin-create-user", {
+      body: payload,
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (error) throw error;
+    return data?.profile || data;
   },
 
   async updateUser(id, updates) {

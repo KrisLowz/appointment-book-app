@@ -116,6 +116,35 @@ body {
 }
 
 /* ============================================
+   Scrollbars
+   ============================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--primary-bg), var(--border));
+  border-radius: var(--radius-full);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+}
+
+/* ============================================
    Login
    ============================================ */
 
@@ -446,6 +475,36 @@ body {
   font-size: var(--font-size-xs);
   color: var(--text-muted);
   margin-bottom: 4px;
+}
+
+.booking-confirm-card {
+  border: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.booking-confirm-title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.booking-confirm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+}
+
+.booking-confirm-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
 }
 
 /* ============================================

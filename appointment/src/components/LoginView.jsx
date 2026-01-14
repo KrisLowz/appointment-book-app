@@ -35,8 +35,8 @@ export default function LoginView() {
           <div className="login-sample-item">Email: mrbur123@gmail.com</div>
           <div className="login-sample-item">Password: mrbur@123</div>
           <div className="login-sample-title" style={{ marginTop: 10 }}>Sample Admin account:</div>
-          <div className="login-sample-item">Email: admin123@gmail.com</div>
-          <div className="login-sample-item">Password: admin@123</div>
+          <div className="login-sample-item">Email: adminbur@gmail.com</div>
+          <div className="login-sample-item">Password: bur@123</div>
         </div>
         <form className="login-form" onSubmit={handleSupabaseSubmit}>
           {authMode === 'signup' && (

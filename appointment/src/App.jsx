@@ -61,6 +61,7 @@ export default function App() {
   const [supabaseSession, setSupabaseSession] = useState(null);
   const [activeClinicId, setActiveClinicId] = useState(() => DataStore.getActiveClinicId());
   const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState('');
   const [bookingLink, setBookingLink] = useState('');
 
   const handleLogout = () => {
@@ -90,19 +91,22 @@ export default function App() {
   useEffect(() => {
     if (!supabaseSession?.user) {
       setProfile(null);
+      setProfileError('');
       setIsLoggedIn(false);
       setProfileLoading(false);
       return;
     }
     const loadProfile = async () => {
       setProfileLoading(true);
+      setProfileError('');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', supabaseSession.user.id)
+        .eq('user_id', supabaseSession.user.id)
         .single();
       if (error) {
         console.error('Failed to load profile:', error);
+        setProfileError('Unable to load your profile. Please try again or contact support.');
         setProfileLoading(false);
         return;
       }
@@ -114,7 +118,7 @@ export default function App() {
 
   useEffect(() => {
     if (!profile) return;
-    const role = profile.role || 'dentist';
+    const role = profile.account_type === 'admin' ? 'admin' : 'dentist';
     setAuthRole(role);
     setIsLoggedIn(true);
     if (profile.clinic_id) {
@@ -279,11 +283,39 @@ export default function App() {
   }
 
   if (!authChecked || (supabaseSession?.user && profileLoading)) {
-    return null;
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Loading your account…</h1>
+          <p className="login-subtitle">Please wait while we verify your session.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Something went wrong</h1>
+          <p className="login-subtitle">{profileError}</p>
+          <button className="btn btn-secondary" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (isLoggedIn && !isReady && authRole !== 'admin' && activeClinicId) {
-    return null;
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Loading your clinic…</h1>
+          <p className="login-subtitle">We are fetching your appointments and settings.</p>
+        </div>
+      </div>
+    );
   }
 
   if (!isLoggedIn) {
