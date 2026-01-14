@@ -282,7 +282,7 @@ export default function App() {
     return <PublicBookingView clinicSlug={bookingSlug} />;
   }
 
-  if (!authChecked || (supabaseSession?.user && profileLoading)) {
+  if (!authChecked || (supabaseSession?.user && profileLoading && !profile)) {
     return (
       <div className="login-page">
         <div className="login-card">

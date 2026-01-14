@@ -6,7 +6,7 @@ const mapProfile = (row) => ({
   email: row.email || "",
   role: row.account_type === "admin" ? "admin" : "dentist",
   clinicId: row.clinic_id || "",
-  name: row.full_name || row.name || "",
+  name: row.name || "",
   status: row.status || "active",
   createdAt: row.created_at,
 });
@@ -33,7 +33,7 @@ export async function getProfileById(id) {
 export async function updateProfile(id, updates) {
   const payload = {
     ...(updates.email !== undefined ? { email: updates.email } : {}),
-    ...(updates.fullName !== undefined ? { full_name: updates.fullName } : {}),
+    ...(updates.fullName !== undefined ? { name: updates.fullName } : {}),
     ...(updates.role !== undefined
       ? { account_type: updates.role === "admin" ? "admin" : "individual" }
       : {}),

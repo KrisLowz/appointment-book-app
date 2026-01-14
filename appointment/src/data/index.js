@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import * as Clinics from "./datastore.supabase.clinics";
 import * as Profiles from "./datastore.supabase.profiles";
@@ -118,34 +119,50 @@ const DataStore = {
 
   async addUser(user) {
     if (!DataStore.canCreateUsers) {
-      throw new Error("Create users via Supabase Auth; client cannot create auth users.");
+      throw new Error("Enable VITE_ENABLE_ADMIN_CREATE_USERS to allow admin signups.");
     }
-    let { data: sessionData } = await supabase.auth.getSession();
-    let accessToken = sessionData?.session?.access_token;
-    if (!accessToken) {
-      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        throw new Error("Session expired. Please log in again.");
-      }
-      sessionData = refreshed;
-      accessToken = refreshed?.session?.access_token;
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
     }
-    if (!accessToken) {
-      throw new Error("No active session. Please log in again.");
-    }
-    const payload = {
-      email: user.username || user.email,
-      password: user.password,
-      fullName: user.name || "",
-      role: user.role || "dentist",
-      clinicId: user.clinicId || null,
-    };
-    const { data, error } = await supabase.functions.invoke("admin-create-user", {
-      body: payload,
-      headers: { Authorization: `Bearer ${accessToken}` },
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storageKey: "sb-admin-signup",
+      },
     });
-    if (error) throw error;
-    return data?.profile || data;
+
+    const email = (user.username || user.email || "").trim().toLowerCase();
+    const password = user.password;
+    const fullName = user.name || "";
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      throw new Error("Email address is invalid.");
+    }
+
+    const { data: signUpData, error: signUpError } = await authClient.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    if (signUpError) throw signUpError;
+    if (!signUpData?.user?.id) {
+      throw new Error("Signup succeeded but no user ID returned.");
+    }
+
+    return {
+      id: signUpData.user.id,
+      email,
+      name: fullName,
+      status: "pending",
+    };
   },
 
   async updateUser(id, updates) {
