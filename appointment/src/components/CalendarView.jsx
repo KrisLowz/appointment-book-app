@@ -59,7 +59,7 @@ export default function CalendarView({
     <div className="calendar-container">
       <div className="calendar-header">
         <div className="calendar-nav">
-          <button className="calendar-nav-btn" onClick={() => changeByView(-1)}>
+          <button className="calendar-nav-btn" onClick={() => changeByView(-1)} aria-label="Previous">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="15 18 9 12 15 6" />
             </svg>
@@ -67,7 +67,7 @@ export default function CalendarView({
           <button className="btn btn-secondary btn-sm" onClick={() => setCurrentDate(new Date())}>
             Today
           </button>
-          <button className="calendar-nav-btn" onClick={() => changeByView(1)}>
+          <button className="calendar-nav-btn" onClick={() => changeByView(1)} aria-label="Next">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="9 18 15 12 9 6" />
             </svg>
@@ -81,12 +81,14 @@ export default function CalendarView({
             </div>
           )}
         </div>
-        <div className="calendar-views">
+        <div className="calendar-views" role="tablist" aria-label="Calendar view">
           {['day', 'week', 'month'].map((v) => (
             <button
               key={v}
               className={`calendar-view-btn ${calendarView === v ? 'active' : ''}`}
               onClick={() => setCalendarView(v)}
+              role="tab"
+              aria-selected={calendarView === v}
             >
               {v.charAt(0).toUpperCase() + v.slice(1)}
             </button>

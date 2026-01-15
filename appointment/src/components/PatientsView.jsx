@@ -230,6 +230,9 @@ export default function PatientsView({
           <div className="empty-state">
             <h3>No patients</h3>
             <p>Add a patient to get started.</p>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => onNew()}>
+              Add Patient
+            </button>
           </div>
         )}
       </div>

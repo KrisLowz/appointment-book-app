@@ -15,16 +15,20 @@ create table if not exists public.clinics (
 create index if not exists clinics_slug_idx on public.clinics (slug);
 
 create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  email text,
-  full_name text,
-  role text not null default 'dentist',
-  status text default 'active',
-  created_at timestamptz not null default now()
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  email text not null unique,
+  name text,
+  account_type text check (account_type = any (array['individual'::text, 'company'::text, 'admin'::text])),
+  phone text,
+  position text,
+  company_name text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  avatar_url text,
+  background_url text,
+  clinic_id uuid,
+  status text default 'active'
 );
-
-alter table public.profiles
-  add column if not exists clinic_id uuid references public.clinics(id) on delete set null;
 
 create table if not exists public.staff (
   id uuid primary key default gen_random_uuid(),
@@ -49,7 +53,7 @@ create table if not exists public.patients (
   email text,
   id_number text,
   address text,
-  created_by uuid references public.profiles(id) on delete set null,
+  created_by uuid references auth.users(id) on delete set null,
   legacy_id text,
   created_at timestamptz not null default now()
 );
@@ -182,7 +186,7 @@ security definer
 set search_path = public
 set row_security = off
 as $$
-  select coalesce((select role = 'admin' from public.profiles where id = auth.uid()), false);
+  select coalesce((select account_type = 'admin' from public.profiles where user_id = auth.uid()), false);
 $$;
 
 create or replace function public.current_clinic_id()
@@ -193,7 +197,7 @@ security definer
 set search_path = public
 set row_security = off
 as $$
-  select clinic_id from public.profiles where id = auth.uid();
+  select clinic_id from public.profiles where user_id = auth.uid();
 $$;
 
 create or replace function public.handle_new_user()
@@ -202,9 +206,9 @@ language plpgsql
 security definer
 as $$
 begin
-  insert into public.profiles (id, email, full_name)
-  values (new.id, new.email, new.raw_user_meta_data->>'full_name')
-  on conflict (id) do nothing;
+  insert into public.profiles (user_id, email, name, account_type)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name', 'individual')
+  on conflict (user_id) do nothing;
   return new;
 end;
 $$;
@@ -251,18 +255,18 @@ create policy "profiles_admin_all"
 create policy "profiles_self_select"
   on public.profiles
   for select
-  using (id = auth.uid());
+  using (user_id = auth.uid());
 
 create policy "profiles_self_update"
   on public.profiles
   for update
-  using (id = auth.uid())
-  with check (id = auth.uid());
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 create policy "profiles_self_insert"
   on public.profiles
   for insert
-  with check (id = auth.uid());
+  with check (user_id = auth.uid());
 
 create policy "staff_member_all"
   on public.staff

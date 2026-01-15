@@ -1,3 +1,4 @@
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabaseClient";
 import * as Clinics from "./datastore.supabase.clinics";
 import * as Profiles from "./datastore.supabase.profiles";
@@ -24,7 +25,7 @@ const requireActiveClinic = (clinicId) => {
 
 const DataStore = {
   useSupabase: true,
-  canCreateUsers: false,
+  canCreateUsers: import.meta.env.VITE_ENABLE_ADMIN_CREATE_USERS === "true",
 
   init() {},
 
@@ -116,8 +117,52 @@ const DataStore = {
     return Profiles.getProfiles();
   },
 
-  async addUser() {
-    throw new Error("Create users via Supabase Auth; client cannot create auth users.");
+  async addUser(user) {
+    if (!DataStore.canCreateUsers) {
+      throw new Error("Enable VITE_ENABLE_ADMIN_CREATE_USERS to allow admin signups.");
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("Missing Supabase env vars. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+        storageKey: "sb-admin-signup",
+      },
+    });
+
+    const email = (user.username || user.email || "").trim().toLowerCase();
+    const password = user.password;
+    const fullName = user.name || "";
+    if (!email) {
+      throw new Error("Email is required.");
+    }
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      throw new Error("Email address is invalid.");
+    }
+
+    const { data: signUpData, error: signUpError } = await authClient.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName } },
+    });
+    if (signUpError) throw signUpError;
+    if (!signUpData?.user?.id) {
+      throw new Error("Signup succeeded but no user ID returned.");
+    }
+
+    return {
+      id: signUpData.user.id,
+      email,
+      name: fullName,
+      status: "pending",
+    };
   },
 
   async updateUser(id, updates) {

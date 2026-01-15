@@ -50,17 +50,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
         return;
       }
 
-      const [
-        patientsData,
-        appointmentsData,
-        roomsData,
-        treatmentsData,
-        settingsData,
-        activityData,
-        staffData,
-        holidaysData,
-        requestsData,
-      ] = await Promise.all([
+      const results = await Promise.allSettled([
         toPromise(DataStore.getPatients()),
         toPromise(DataStore.getAppointments()),
         toPromise(DataStore.getRooms()),
@@ -74,15 +64,25 @@ export default function useDataStore(activeClinicId, enabled = true) {
 
       if (cancelled) return;
 
-      setPatients(patientsData || []);
-      setAppointments(appointmentsData || []);
-      setRooms(roomsData || []);
-      setTreatments(treatmentsData || []);
-      setSettings(settingsData || null);
-      setActivity(activityData || []);
-      setStaff(staffData || []);
-      setHolidays(holidaysData || []);
-      setAppointmentRequests(requestsData || []);
+      const getValue = (index, fallback) =>
+        results[index].status === 'fulfilled' ? results[index].value ?? fallback : fallback;
+
+      const loadErrors = results
+        .map((result, index) => (result.status === 'rejected' ? { index, error: result.reason } : null))
+        .filter(Boolean);
+      if (loadErrors.length) {
+        console.error('DataStore load failures:', loadErrors);
+      }
+
+      setPatients(getValue(0, []));
+      setAppointments(getValue(1, []));
+      setRooms(getValue(2, []));
+      setTreatments(getValue(3, []));
+      setSettings(getValue(4, null));
+      setActivity(getValue(5, []));
+      setStaff(getValue(6, []));
+      setHolidays(getValue(7, []));
+      setAppointmentRequests(getValue(8, []));
       setIsReady(true);
     };
 

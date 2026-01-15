@@ -178,7 +178,7 @@ export default function ReportsView({ appointments, patients, treatments, staff 
 
   return (
     <div className="reports-layout">
-      <aside className="reports-nav">
+      <aside className="reports-nav" role="tablist" aria-label="Reports sections">
         {[
           { id: 'dentist', label: 'Dentist Stats' },
           { id: 'nurse', label: 'Nurse Hours' },
@@ -190,6 +190,8 @@ export default function ReportsView({ appointments, patients, treatments, staff 
             key={item.id}
             className={`reports-nav-item ${activeTab === item.id ? 'active' : ''}`}
             onClick={() => setActiveTab(item.id)}
+            role="tab"
+            aria-selected={activeTab === item.id}
           >
             {item.label}
           </button>

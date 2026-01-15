@@ -35,6 +35,7 @@ export default function PublicBookingView({ clinicSlug }) {
   const [clinic, setClinic] = useState(null);
   const [dentists, setDentists] = useState([]);
   const [treatments, setTreatments] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -42,8 +43,16 @@ export default function PublicBookingView({ clinicSlug }) {
   const [step, setStep] = useState(0);
   const [patientType, setPatientType] = useState('');
   const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupPatient, setLookupPatient] = useState(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState('');
+  const [confirmMatch, setConfirmMatch] = useState(false);
   const [patient, setPatient] = useState({ ...emptyPatient });
   const [appointment, setAppointment] = useState({ ...emptyAppointment });
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
 
   useEffect(() => {
     let isActive = true;
@@ -75,7 +84,7 @@ export default function PublicBookingView({ clinicSlug }) {
     if (!clinic?.id) return;
     let isActive = true;
     const loadClinicData = async () => {
-      const [{ data: dentistData }, { data: treatmentData }] = await Promise.all([
+      const [{ data: dentistData }, { data: treatmentData }, { data: settingsData }] = await Promise.all([
         supabase
           .from('staff')
           .select('id, name, role')
@@ -87,10 +96,16 @@ export default function PublicBookingView({ clinicSlug }) {
           .select('id, name, duration')
           .eq('clinic_id', clinic.id)
           .order('name', { ascending: true }),
+        supabase
+          .from('settings')
+          .select('working_hours_start, working_hours_end, slot_duration, rest_days')
+          .eq('clinic_id', clinic.id)
+          .maybeSingle(),
       ]);
       if (!isActive) return;
       setDentists(dentistData || []);
       setTreatments(treatmentData || []);
+      setSettings(settingsData || null);
     };
     loadClinicData();
     return () => {
@@ -99,12 +114,179 @@ export default function PublicBookingView({ clinicSlug }) {
   }, [clinic]);
 
   useEffect(() => {
+    if (patientType !== 'existing') {
+      setLookupPatient(null);
+      setLookupError('');
+      setConfirmMatch(false);
+      return;
+    }
+    const email = lookupEmail.trim().toLowerCase();
+    if (!clinic?.id || email.length < 5 || !email.includes('@')) {
+      setLookupPatient(null);
+      setLookupError('');
+      setConfirmMatch(false);
+      return;
+    }
+    setLookupLoading(true);
+    setLookupError('');
+    const timer = setTimeout(async () => {
+      const { data, error: lookupErr } = await supabase
+        .from('patients')
+        .select('id, name, phone, email, id_number, address')
+        .eq('clinic_id', clinic.id)
+        .ilike('email', email)
+        .maybeSingle();
+      if (lookupErr) {
+        setLookupPatient(null);
+        setLookupError('Unable to verify your email right now.');
+        setConfirmMatch(false);
+        setLookupLoading(false);
+        return;
+      }
+      if (!data) {
+        setLookupPatient(null);
+        setLookupError('No patient record found for this email.');
+        setConfirmMatch(false);
+        setLookupLoading(false);
+        return;
+      }
+      setLookupPatient({
+        id: data.id,
+        name: data.name,
+        phone: data.phone || '',
+        email: data.email || '',
+        idNumber: data.id_number || '',
+        address: data.address || '',
+      });
+      setLookupError('');
+      setConfirmMatch(false);
+      setLookupLoading(false);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [clinic, lookupEmail, patientType]);
+
+  useEffect(() => {
     if (!appointment.treatmentId) return;
     const selected = treatments.find((t) => String(t.id) === String(appointment.treatmentId));
     if (selected && typeof selected.duration === 'number') {
       setAppointment((prev) => ({ ...prev, duration: selected.duration }));
     }
   }, [appointment.treatmentId, treatments]);
+
+  useEffect(() => {
+    if (!appointment.date) return;
+    const [year, month] = appointment.date.split('-').map(Number);
+    if (!year || !month) return;
+    setCalendarMonth(new Date(year, month - 1, 1));
+  }, [appointment.date]);
+
+  const toMinutes = (time) => {
+    if (!time || !time.includes(':')) return null;
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
+  };
+
+  const minutesToTime = (minutes) => {
+    const h = String(Math.floor(minutes / 60)).padStart(2, '0');
+    const m = String(minutes % 60).padStart(2, '0');
+    return `${h}:${m}`;
+  };
+
+  const formatTimeLabel = (time) => {
+    if (!time) return '';
+    const [h, m] = time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(h, m, 0, 0);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  };
+
+  const toISODate = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const startOfMonth = (date) => new Date(date.getFullYear(), date.getMonth(), 1);
+
+  const calendarDays = useMemo(() => {
+    const first = startOfMonth(calendarMonth);
+    const start = new Date(first);
+    start.setDate(first.getDate() - first.getDay());
+    const days = [];
+    for (let i = 0; i < 42; i += 1) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      days.push({
+        date: d,
+        inMonth: d.getMonth() === calendarMonth.getMonth(),
+        iso: toISODate(d),
+      });
+    }
+    return days;
+  }, [calendarMonth]);
+
+  const workingHoursStart = settings?.working_hours_start || '09:00';
+  const workingHoursEnd = settings?.working_hours_end || '18:00';
+  const slotDuration = settings?.slot_duration || 30;
+  const restDays = settings?.rest_days || [];
+
+  const selectedDuration = appointment.duration || slotDuration || 30;
+
+  const isDateDisabled = (date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compare = new Date(date);
+    compare.setHours(0, 0, 0, 0);
+    if (compare < today) return true;
+    if (Array.isArray(restDays) && restDays.includes(compare.getDay())) return true;
+    return false;
+  };
+
+  useEffect(() => {
+    if (!settings) return;
+    const currentDate = new Date(`${appointment.date}T00:00:00`);
+    if (!Number.isNaN(currentDate.getTime()) && !isDateDisabled(currentDate)) return;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    let found = null;
+    for (let i = 0; i < 60; i += 1) {
+      const candidate = new Date(start);
+      candidate.setDate(start.getDate() + i);
+      if (!isDateDisabled(candidate)) {
+        found = candidate;
+        break;
+      }
+    }
+    if (found) {
+      setAppointment((prev) => ({ ...prev, date: toISODate(found) }));
+    }
+  }, [settings, appointment.date]);
+
+  const availableSlots = useMemo(() => {
+    if (!appointment.date) return [];
+    const startMinutes = toMinutes(workingHoursStart);
+    const endMinutes = toMinutes(workingHoursEnd);
+    if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) return [];
+    const slots = [];
+    const today = todayISO();
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const minMinutes = appointment.date === today ? currentMinutes : startMinutes;
+    for (let t = startMinutes; t + selectedDuration <= endMinutes; t += slotDuration) {
+      if (t < minMinutes) continue;
+      slots.push(minutesToTime(t));
+    }
+    return slots;
+  }, [appointment.date, selectedDuration, slotDuration, workingHoursStart, workingHoursEnd]);
+
+  useEffect(() => {
+    if (!appointment.date) return;
+    if (!availableSlots.length) return;
+    if (!appointment.startTime || !availableSlots.includes(appointment.startTime)) {
+      setAppointment((prev) => ({ ...prev, startTime: availableSlots[0] }));
+    }
+  }, [appointment.date, appointment.startTime, availableSlots]);
 
   const endTime = useMemo(
     () => addMinutes(appointment.startTime, appointment.duration),
@@ -129,6 +311,18 @@ export default function PublicBookingView({ clinicSlug }) {
         setError('Please enter a valid email.');
         return false;
       }
+      if (lookupLoading) {
+        setError('Checking your email. Please wait.');
+        return false;
+      }
+      if (!lookupPatient) {
+        setError(lookupError || 'No patient record found.');
+        return false;
+      }
+      if (!confirmMatch) {
+        setError('Please confirm your patient details before continuing.');
+        return false;
+      }
       return true;
     }
     if (!patient.name.trim()) {
@@ -150,8 +344,25 @@ export default function PublicBookingView({ clinicSlug }) {
       setError('Please choose a date and time.');
       return false;
     }
+    if (isDateDisabled(new Date(`${appointment.date}T00:00:00`))) {
+      setError('Selected date is not available.');
+      return false;
+    }
     if (appointment.date < today || (appointment.date === today && appointment.startTime <= currentTime)) {
       setError('Please choose a future date and time.');
+      return false;
+    }
+    const startMinutes = toMinutes(workingHoursStart);
+    const endMinutes = toMinutes(workingHoursEnd);
+    const selectedStart = toMinutes(appointment.startTime);
+    if (
+      startMinutes === null ||
+      endMinutes === null ||
+      selectedStart === null ||
+      selectedStart < startMinutes ||
+      selectedStart + selectedDuration > endMinutes
+    ) {
+      setError('Selected time is outside clinic working hours.');
       return false;
     }
     return true;
@@ -256,7 +467,13 @@ export default function PublicBookingView({ clinicSlug }) {
           {clinic?.slug && <span className="booking-badge">{clinic.slug}</span>}
         </div>
         <div className="card-body">
-          {loading && <p className="booking-status">Loading clinic...</p>}
+          {loading && (
+            <div className="booking-loading">
+              <div className="skeleton skeleton-line" style={{ width: '55%' }}></div>
+              <div className="skeleton skeleton-row"></div>
+              <div className="skeleton skeleton-row"></div>
+            </div>
+          )}
           {!loading && !clinic && <p className="form-error">{error}</p>}
           {!loading && clinic && success && (
             <div className="booking-success-card">
@@ -311,17 +528,59 @@ export default function PublicBookingView({ clinicSlug }) {
               )}
 
               {step === 1 && patientType === 'existing' && (
-                <div className="form-group">
-                  <label className="form-label">Email</label>
-                  <input
-                    className="form-input"
-                    type="email"
-                    value={lookupEmail}
-                    onChange={(event) => setLookupEmail(event.target.value)}
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Email</label>
+                    <input
+                      className="form-input"
+                      type="email"
+                      value={lookupEmail}
+                      onChange={(event) => {
+                        setLookupEmail(event.target.value);
+                        setConfirmMatch(false);
+                      }}
+                      placeholder="you@example.com"
+                      required
+                    />
+                    {lookupLoading && <div className="form-hint">Checking your record...</div>}
+                    {!lookupLoading && lookupError && <div className="form-error">{lookupError}</div>}
+                  </div>
+                  {lookupPatient && (
+                    <div className="booking-confirm-card">
+                      <div className="booking-confirm-title">Is this you?</div>
+                      <div className="booking-confirm-grid">
+                        <div>
+                          <div className="booking-summary-label">Name</div>
+                          <div>{lookupPatient.name}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">Phone</div>
+                          <div>{lookupPatient.phone || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">Email</div>
+                          <div>{lookupPatient.email}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">IC/ID</div>
+                          <div>{lookupPatient.idNumber || '-'}</div>
+                        </div>
+                        <div>
+                          <div className="booking-summary-label">Address</div>
+                          <div>{lookupPatient.address || '-'}</div>
+                        </div>
+                      </div>
+                      <label className="booking-confirm-check">
+                        <input
+                          type="checkbox"
+                          checked={confirmMatch}
+                          onChange={(event) => setConfirmMatch(event.target.checked)}
+                        />
+                        This is my record
+                      </label>
+                    </div>
+                  )}
+                </>
               )}
 
               {step === 1 && patientType === 'new' && (
@@ -453,30 +712,105 @@ export default function PublicBookingView({ clinicSlug }) {
 
               {step === 2 && (
                 <>
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label className="form-label">Date</label>
-                      <input
-                        className="form-input"
-                        type="date"
-                        value={appointment.date}
-                        onChange={updateAppointment('date')}
-                        min={todayISO()}
-                        required
-                      />
+                  <div className="booking-datetime">
+                    <div className="booking-calendar">
+                      <div className="booking-calendar-header">
+                        <div className="booking-calendar-title">
+                          {calendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </div>
+                        <div className="booking-calendar-nav">
+                          <button
+                            type="button"
+                            className="calendar-nav-btn"
+                            onClick={() =>
+                              setCalendarMonth(
+                                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                              )
+                            }
+                            aria-label="Previous month"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="15 18 9 12 15 6" />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            className="calendar-nav-btn"
+                            onClick={() =>
+                              setCalendarMonth(
+                                new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                              )
+                            }
+                            aria-label="Next month"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                      <div className="booking-calendar-grid">
+                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                          <div key={day} className="booking-calendar-weekday">
+                            {day}
+                          </div>
+                        ))}
+                        {calendarDays.map((day) => {
+                          const disabled = isDateDisabled(day.date);
+                          const isSelected = appointment.date === day.iso;
+                          return (
+                            <button
+                              key={day.iso}
+                              type="button"
+                              className={`booking-calendar-day ${day.inMonth ? '' : 'muted'} ${isSelected ? 'selected' : ''}`}
+                              onClick={() => {
+                                if (disabled) return;
+                                setAppointment((prev) => ({ ...prev, date: day.iso }));
+                              }}
+                              disabled={disabled}
+                              aria-label={day.date.toDateString()}
+                            >
+                              {day.date.getDate()}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="booking-calendar-footnote">
+                        Working hours: {workingHoursStart} - {workingHoursEnd}
+                      </div>
                     </div>
-                    <div className="form-group">
-                      <label className="form-label">Time</label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <input
-                          className="form-input"
-                          type="time"
-                          value={appointment.startTime}
-                          onChange={updateAppointment('startTime')}
-                          required
-                        />
-                        <span className="text-muted" style={{ fontSize: 12 }}>to</span>
-                        <input className="form-input" type="time" value={endTime} readOnly />
+
+                    <div className="booking-times">
+                      <div className="booking-times-header">
+                        <div className="booking-times-title">
+                          {appointment.date
+                            ? new Date(`${appointment.date}T00:00:00`).toLocaleDateString('en-US', {
+                                weekday: 'long',
+                                month: 'long',
+                                day: 'numeric',
+                              })
+                            : 'Select a date'}
+                        </div>
+                        <div className="booking-times-subtitle">
+                          {selectedDuration} min appointment
+                        </div>
+                      </div>
+                      <div className="booking-times-list">
+                        {availableSlots.length === 0 && (
+                          <div className="booking-times-empty">
+                            No times available for this date.
+                          </div>
+                        )}
+                        {availableSlots.map((slot) => (
+                          <button
+                            key={slot}
+                            type="button"
+                            className={`booking-time-slot ${appointment.startTime === slot ? 'selected' : ''}`}
+                            onClick={() => setAppointment((prev) => ({ ...prev, startTime: slot }))}
+                          >
+                            {formatTimeLabel(slot)}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   </div>

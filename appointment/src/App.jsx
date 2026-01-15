@@ -14,6 +14,7 @@ import PatientModal from './components/PatientModal';
 import LoginView from './components/LoginView';
 import AdminDashboard from './components/AdminDashboard';
 import PublicBookingView from './components/PublicBookingView';
+import ConfirmDialog from './components/ConfirmDialog';
 import { todayISO } from './utils/date';
 import { supabase } from './lib/supabaseClient';
 import DataStore from "./data";
@@ -61,6 +62,7 @@ export default function App() {
   const [supabaseSession, setSupabaseSession] = useState(null);
   const [activeClinicId, setActiveClinicId] = useState(() => DataStore.getActiveClinicId());
   const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState('');
   const [bookingLink, setBookingLink] = useState('');
 
   const handleLogout = () => {
@@ -90,19 +92,22 @@ export default function App() {
   useEffect(() => {
     if (!supabaseSession?.user) {
       setProfile(null);
+      setProfileError('');
       setIsLoggedIn(false);
       setProfileLoading(false);
       return;
     }
     const loadProfile = async () => {
       setProfileLoading(true);
+      setProfileError('');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', supabaseSession.user.id)
+        .eq('user_id', supabaseSession.user.id)
         .single();
       if (error) {
         console.error('Failed to load profile:', error);
+        setProfileError('Unable to load your profile. Please try again or contact support.');
         setProfileLoading(false);
         return;
       }
@@ -114,7 +119,7 @@ export default function App() {
 
   useEffect(() => {
     if (!profile) return;
-    const role = profile.role || 'dentist';
+    const role = profile.account_type === 'admin' ? 'admin' : 'dentist';
     setAuthRole(role);
     setIsLoggedIn(true);
     if (profile.clinic_id) {
@@ -197,6 +202,7 @@ export default function App() {
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [appointmentDefaults, setAppointmentDefaults] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
   const bookingSlug = getBookingSlugFromPath();
 
   const viewTitle = {
@@ -221,11 +227,11 @@ export default function App() {
 
   const handleDeleteAppointment = (data) => {
     if (!data || !data.id) return;
-    if (window.confirm('Delete this appointment?')) {
-      deleteAppointment(data.id);
-      setShowAppointmentModal(false);
-      setAppointmentDefaults(null);
-    }
+    setConfirmDialog({
+      open: true,
+      type: 'appointment',
+      payload: data,
+    });
   };
 
   const handleSavePatient = (data) => {
@@ -245,11 +251,25 @@ export default function App() {
       alert('Cannot delete: patient has appointments');
       return;
     }
-    if (window.confirm('Delete this patient?')) {
-      deletePatient(editingPatient.id);
+    setConfirmDialog({
+      open: true,
+      type: 'patient',
+      payload: editingPatient,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDialog.type === 'appointment' && confirmDialog.payload?.id) {
+      deleteAppointment(confirmDialog.payload.id);
+      setShowAppointmentModal(false);
+      setAppointmentDefaults(null);
+    }
+    if (confirmDialog.type === 'patient' && confirmDialog.payload?.id) {
+      deletePatient(confirmDialog.payload.id);
       setShowPatientModal(false);
       setEditingPatient(null);
     }
+    setConfirmDialog({ open: false, type: '', payload: null });
   };
 
   const openNewAppointment = (date, startTime, dentistId) => {
@@ -278,12 +298,40 @@ export default function App() {
     return <PublicBookingView clinicSlug={bookingSlug} />;
   }
 
-  if (!authChecked || (supabaseSession?.user && profileLoading)) {
-    return null;
+  if (!authChecked || (supabaseSession?.user && profileLoading && !profile)) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Loading your account…</h1>
+          <p className="login-subtitle">Please wait while we verify your session.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (profileError) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Something went wrong</h1>
+          <p className="login-subtitle">{profileError}</p>
+          <button className="btn btn-secondary" onClick={handleLogout}>
+            Logout
+          </button>
+        </div>
+      </div>
+    );
   }
 
   if (isLoggedIn && !isReady && authRole !== 'admin' && activeClinicId) {
-    return null;
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Loading your clinic…</h1>
+          <p className="login-subtitle">We are fetching your appointments and settings.</p>
+        </div>
+      </div>
+    );
   }
 
   if (!isLoggedIn) {
@@ -342,14 +390,15 @@ export default function App() {
             />
           )}
           {view === 'today' && (
-            <TodayView
-              appointments={appointments}
-              patients={patients}
-              rooms={rooms}
-              treatments={treatments}
-              onAppointmentSelect={handleAppointmentClick}
-            />
-          )}
+          <TodayView
+            appointments={appointments}
+            patients={patients}
+            rooms={rooms}
+            treatments={treatments}
+            onAppointmentSelect={handleAppointmentClick}
+            onNewAppointment={() => setShowAppointmentModal(true)}
+          />
+        )}
           {view === 'patients' && (
             <PatientsView
               patients={patients}
@@ -442,6 +491,20 @@ export default function App() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.type === 'patient' ? 'Delete patient' : 'Delete appointment'}
+        description={
+          confirmDialog.type === 'patient'
+            ? 'This will permanently remove the patient record. This action cannot be undone.'
+            : 'This will permanently remove the appointment from the schedule.'
+        }
+        confirmLabel={confirmDialog.type === 'patient' ? 'Delete patient' : 'Delete appointment'}
+        confirmVariant="danger"
+        onClose={() => setConfirmDialog({ open: false, type: '', payload: null })}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }
