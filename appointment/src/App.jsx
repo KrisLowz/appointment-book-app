@@ -14,6 +14,7 @@ import PatientModal from './components/PatientModal';
 import LoginView from './components/LoginView';
 import AdminDashboard from './components/AdminDashboard';
 import PublicBookingView from './components/PublicBookingView';
+import ConfirmDialog from './components/ConfirmDialog';
 import { todayISO } from './utils/date';
 import { supabase } from './lib/supabaseClient';
 import DataStore from "./data";
@@ -201,6 +202,7 @@ export default function App() {
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [appointmentDefaults, setAppointmentDefaults] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
   const bookingSlug = getBookingSlugFromPath();
 
   const viewTitle = {
@@ -225,11 +227,11 @@ export default function App() {
 
   const handleDeleteAppointment = (data) => {
     if (!data || !data.id) return;
-    if (window.confirm('Delete this appointment?')) {
-      deleteAppointment(data.id);
-      setShowAppointmentModal(false);
-      setAppointmentDefaults(null);
-    }
+    setConfirmDialog({
+      open: true,
+      type: 'appointment',
+      payload: data,
+    });
   };
 
   const handleSavePatient = (data) => {
@@ -249,11 +251,25 @@ export default function App() {
       alert('Cannot delete: patient has appointments');
       return;
     }
-    if (window.confirm('Delete this patient?')) {
-      deletePatient(editingPatient.id);
+    setConfirmDialog({
+      open: true,
+      type: 'patient',
+      payload: editingPatient,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDialog.type === 'appointment' && confirmDialog.payload?.id) {
+      deleteAppointment(confirmDialog.payload.id);
+      setShowAppointmentModal(false);
+      setAppointmentDefaults(null);
+    }
+    if (confirmDialog.type === 'patient' && confirmDialog.payload?.id) {
+      deletePatient(confirmDialog.payload.id);
       setShowPatientModal(false);
       setEditingPatient(null);
     }
+    setConfirmDialog({ open: false, type: '', payload: null });
   };
 
   const openNewAppointment = (date, startTime, dentistId) => {
@@ -374,14 +390,15 @@ export default function App() {
             />
           )}
           {view === 'today' && (
-            <TodayView
-              appointments={appointments}
-              patients={patients}
-              rooms={rooms}
-              treatments={treatments}
-              onAppointmentSelect={handleAppointmentClick}
-            />
-          )}
+          <TodayView
+            appointments={appointments}
+            patients={patients}
+            rooms={rooms}
+            treatments={treatments}
+            onAppointmentSelect={handleAppointmentClick}
+            onNewAppointment={() => setShowAppointmentModal(true)}
+          />
+        )}
           {view === 'patients' && (
             <PatientsView
               patients={patients}
@@ -474,6 +491,20 @@ export default function App() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.type === 'patient' ? 'Delete patient' : 'Delete appointment'}
+        description={
+          confirmDialog.type === 'patient'
+            ? 'This will permanently remove the patient record. This action cannot be undone.'
+            : 'This will permanently remove the appointment from the schedule.'
+        }
+        confirmLabel={confirmDialog.type === 'patient' ? 'Delete patient' : 'Delete appointment'}
+        confirmVariant="danger"
+        onClose={() => setConfirmDialog({ open: false, type: '', payload: null })}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

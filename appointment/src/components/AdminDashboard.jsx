@@ -5,6 +5,7 @@ import { updateStaff as updateStaffRecord } from '../data/datastore.supabase.sta
 import { updateRoom as updateRoomRecord } from '../data/datastore.supabase.rooms';
 import { updateTreatment as updateTreatmentRecord } from '../data/datastore.supabase.treatments';
 import Modal from './Modal';
+import ConfirmDialog from './ConfirmDialog';
 import { todayISO } from '../utils/date';
 
 const planOptions = ['Starter', 'Growth', 'Pro', 'Enterprise'];
@@ -30,6 +31,7 @@ export default function AdminDashboard({ onLogout }) {
   const [detailSaving, setDetailSaving] = useState(false);
   const [detailError, setDetailError] = useState('');
   const [userSuccessMessage, setUserSuccessMessage] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
 
   const refresh = async () => {
     setLoading(true);
@@ -341,18 +343,31 @@ export default function AdminDashboard({ onLogout }) {
 
   const handleDelete = async () => {
     if (modalState.type === 'clinic' && clinicForm.id) {
-      if (window.confirm('Delete this clinic?')) {
-        await DataStore.deleteClinic(clinicForm.id);
-        await refresh();
-      }
+      setConfirmDialog({
+        open: true,
+        type: 'clinic',
+        payload: { id: clinicForm.id, name: clinicForm.name },
+      });
     }
     if (modalState.type === 'user' && userForm.id) {
-      if (window.confirm('Delete this user?')) {
-        await DataStore.deleteUser(userForm.id);
-        await refresh();
-      }
+      setConfirmDialog({
+        open: true,
+        type: 'user',
+        payload: { id: userForm.id, name: userForm.name || userForm.username },
+      });
     }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (confirmDialog.type === 'clinic' && confirmDialog.payload?.id) {
+      await DataStore.deleteClinic(confirmDialog.payload.id);
+    }
+    if (confirmDialog.type === 'user' && confirmDialog.payload?.id) {
+      await DataStore.deleteUser(confirmDialog.payload.id);
+    }
+    await refresh();
     closeModal();
+    setConfirmDialog({ open: false, type: '', payload: null });
   };
 
   return (
@@ -365,7 +380,8 @@ export default function AdminDashboard({ onLogout }) {
             <div className="admin-brand-subtitle">Clinic Ops</div>
           </div>
         </div>
-        <nav className="admin-nav">
+        <div className="admin-nav-label">Navigation</div>
+        <nav className="admin-nav" role="tablist" aria-label="Admin sections">
           {[
             { id: 'overview', label: 'Overview' },
             { id: 'clinics', label: 'Clinics' },
@@ -376,6 +392,8 @@ export default function AdminDashboard({ onLogout }) {
               key={tab.id}
               className={`admin-nav-item ${activeTab === tab.id ? 'active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              aria-selected={activeTab === tab.id}
             >
               <span>{tab.label}</span>
             </button>
@@ -390,11 +408,11 @@ export default function AdminDashboard({ onLogout }) {
 
       <main className="admin-main">
         <header className="admin-topbar">
-          <div>
+          <div className="admin-topbar-left">
             <div className="admin-title">Admin Dashboard</div>
             <div className="admin-subtitle">Multi-clinic management and audit overview</div>
           </div>
-          <div className="admin-topbar-actions">
+          <div className="admin-topbar-right">
             <button className="btn btn-secondary btn-sm" onClick={refresh}>
               Refresh
             </button>
@@ -409,18 +427,35 @@ export default function AdminDashboard({ onLogout }) {
             >
               New User
             </button>
-            <div className="admin-status-pill">
+            {/* <div className="admin-status-pill">
               {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-            </div>
+            </div> */}
           </div>
         </header>
 
         {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
-        {loading && <div className="empty-state">Loading admin data...</div>}
+        {loading && (
+          <div className="admin-loading">
+            <div className="skeleton skeleton-line" style={{ width: '220px', height: 16 }}></div>
+            <div className="admin-loading-grid">
+              <div className="skeleton skeleton-card"></div>
+              <div className="skeleton skeleton-card"></div>
+              <div className="skeleton skeleton-card"></div>
+              <div className="skeleton skeleton-card"></div>
+            </div>
+          </div>
+        )}
 
         {activeTab === 'overview' && (
           <div className="admin-layout">
-            <section className="admin-metrics">
+            <section className="admin-section">
+              <div className="admin-section-header">
+                <div>
+                  <div className="admin-section-title">Clinic Overview</div>
+                  <div className="admin-section-subtitle">At-a-glance operational totals</div>
+                </div>
+              </div>
+              <div className="admin-metrics">
               <div className="admin-card">
                 <div className="admin-card-label">Clinics</div>
                 <div className="admin-card-value">{totals.clinics}</div>
@@ -445,6 +480,7 @@ export default function AdminDashboard({ onLogout }) {
                 <div className="admin-card-label">Staff</div>
                 <div className="admin-card-value">{totals.staff}</div>
                 <div className="admin-card-meta">Dentists + Nurses</div>
+              </div>
               </div>
             </section>
 
@@ -974,6 +1010,19 @@ export default function AdminDashboard({ onLogout }) {
           </div>
         </Modal>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.type === 'clinic' ? 'Delete clinic' : 'Delete user'}
+        description={
+          confirmDialog.type === 'clinic'
+            ? 'Deleting a clinic will remove all related data for that clinic. This action cannot be undone.'
+            : 'Deleting a user will revoke their access to the platform.'
+        }
+        confirmLabel={confirmDialog.type === 'clinic' ? 'Delete clinic' : 'Delete user'}
+        confirmVariant="danger"
+        onClose={() => setConfirmDialog({ open: false, type: '', payload: null })}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

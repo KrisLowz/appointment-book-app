@@ -76,16 +76,18 @@ export default function Sidebar({ view, onChange, theme, setTheme, onLogout, boo
           <img className="sidebar-logo-img" src="/assets/Mr_Bur_Logo-01.png" alt="MR.BUR" />
         </div>
       </div>
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Primary">
         {items.map((item) => (
-          <div
+          <button
             key={item.id}
+            type="button"
             className={`nav-item ${view === item.id ? 'active' : ''}`}
             onClick={() => onChange(item.id)}
+            aria-current={view === item.id ? 'page' : undefined}
           >
             {renderIcon(item.icon)}
             <span>{item.label}</span>
-          </div>
+          </button>
         ))}
       </nav>
       <div className="sidebar-footer">
@@ -99,6 +101,7 @@ export default function Sidebar({ view, onChange, theme, setTheme, onLogout, boo
               className="form-input sidebar-booking-input"
               value={bookingLink || 'Set clinic slug to enable link'}
               readOnly
+              aria-label="Booking link"
             />
             <button
               className="btn btn-secondary btn-sm"
@@ -127,6 +130,7 @@ export default function Sidebar({ view, onChange, theme, setTheme, onLogout, boo
               type="checkbox"
               checked={theme === 'dark'}
               onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
+              aria-label="Toggle dark mode"
             />
             <span className="theme-slider"></span>
             <span className="theme-label">{theme === 'dark' ? 'Dark' : 'Light'}</span>
