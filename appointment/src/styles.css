@@ -6281,3 +6281,103 @@ tbody tr:hover {
   position: relative;
 }
 
+
+/* ============================================
+   OTP Verification
+   ============================================ */
+.otp-verification-container {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-light);
+  background: var(--bg-secondary);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+}
+
+.otp-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.otp-btn {
+  height: 40px;
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-md);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: all var(--transition-normal);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.otp-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.otp-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-secondary);
+  border-color: var(--border-light);
+}
+
+.otp-verify-group {
+  display: flex;
+  gap: var(--space-xs);
+  align-items: stretch;
+}
+
+.otp-input {
+  max-width: 140px;
+  text-align: center;
+  font-size: var(--font-size-lg);
+  letter-spacing: 0.2em;
+  font-weight: var(--font-weight-bold);
+  height: 44px;
+}
+
+.otp-verify-btn {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  height: 44px;
+}
+
+.otp-verify-btn:hover:not(:disabled) {
+  background: var(--primary-dark);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+}
+
+.status-pill.warning {
+    background: var(--warning-bg);
+    color: var(--warning-dark);
+}
+
+.status-pill.info {
+    background: var(--primary-bg);
+    color: var(--primary);
+}
+
