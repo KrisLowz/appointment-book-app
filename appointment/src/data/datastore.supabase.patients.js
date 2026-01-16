@@ -13,7 +13,16 @@ export async function getPatients(clinicId) {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return data || [];
+
+  return (data || []).map(p => ({
+    ...p,
+    idNumber: p.id_number,
+    taxNumber: p.tax_number,
+    emergencyContactName: p.emergency_contact_name,
+    emergencyContactPhone: p.emergency_contact_phone,
+    medicalConditions: p.medical_conditions,
+    preferredDentist: p.preferred_dentist_id,
+  }));
 }
 
 export async function addPatient(clinicId, patient) {
@@ -24,6 +33,18 @@ export async function addPatient(clinicId, patient) {
     email: patient.email || null,
     id_number: patient.idNumber || patient.id_number || null,
     address: patient.address || null,
+    dob: patient.dob || null,
+    gender: patient.gender || null,
+    tax_number: patient.taxNumber || null,
+    emergency_contact_name: patient.emergencyContactName || null,
+    emergency_contact_phone: patient.emergencyContactPhone || null,
+    allergies: patient.allergies || null,
+    medical_conditions: patient.medicalConditions || null,
+    medications: patient.medications || null,
+    source: patient.source || null,
+    preferred_dentist_id: patient.preferredDentist || null,
+    insurance: patient.insurance || null,
+    notes: patient.notes || null,
     legacy_id: patient.id || null, // optional if you are migrating legacy later
     created_by: (await supabase.auth.getUser()).data.user?.id || null,
   };
@@ -40,17 +61,33 @@ export async function addPatient(clinicId, patient) {
   return {
     ...data,
     idNumber: data.id_number,
+    taxNumber: data.tax_number,
+    emergencyContactName: data.emergency_contact_name,
+    emergencyContactPhone: data.emergency_contact_phone,
+    medicalConditions: data.medical_conditions,
+    preferredDentist: data.preferred_dentist_id,
   };
 }
 
 export async function updatePatient(patientUuid, updates) {
-  const payload = {
-    ...(updates.name !== undefined ? { name: updates.name } : {}),
-    ...(updates.phone !== undefined ? { phone: updates.phone } : {}),
-    ...(updates.email !== undefined ? { email: updates.email } : {}),
-    ...(updates.idNumber !== undefined ? { id_number: updates.idNumber } : {}),
-    ...(updates.address !== undefined ? { address: updates.address } : {}),
-  };
+  const payload = {};
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.phone !== undefined) payload.phone = updates.phone;
+  if (updates.email !== undefined) payload.email = updates.email;
+  if (updates.idNumber !== undefined) payload.id_number = updates.idNumber;
+  if (updates.address !== undefined) payload.address = updates.address;
+  if (updates.dob !== undefined) payload.dob = updates.dob;
+  if (updates.gender !== undefined) payload.gender = updates.gender;
+  if (updates.taxNumber !== undefined) payload.tax_number = updates.taxNumber;
+  if (updates.emergencyContactName !== undefined) payload.emergency_contact_name = updates.emergencyContactName;
+  if (updates.emergencyContactPhone !== undefined) payload.emergency_contact_phone = updates.emergencyContactPhone;
+  if (updates.allergies !== undefined) payload.allergies = updates.allergies;
+  if (updates.medicalConditions !== undefined) payload.medical_conditions = updates.medicalConditions;
+  if (updates.medications !== undefined) payload.medications = updates.medications;
+  if (updates.source !== undefined) payload.source = updates.source;
+  if (updates.preferredDentist !== undefined) payload.preferred_dentist_id = updates.preferredDentist || null;
+  if (updates.insurance !== undefined) payload.insurance = updates.insurance;
+  if (updates.notes !== undefined) payload.notes = updates.notes;
 
   const { data, error } = await supabase
     .from("patients")
@@ -61,7 +98,15 @@ export async function updatePatient(patientUuid, updates) {
 
   if (error) throw error;
 
-  return { ...data, idNumber: data.id_number };
+  return {
+    ...data,
+    idNumber: data.id_number,
+    taxNumber: data.tax_number,
+    emergencyContactName: data.emergency_contact_name,
+    emergencyContactPhone: data.emergency_contact_phone,
+    medicalConditions: data.medical_conditions,
+    preferredDentist: data.preferred_dentist_id,
+  };
 }
 
 export async function deletePatient(patientUuid) {
@@ -78,7 +123,15 @@ export async function getPatientById(patientUuid) {
     .single();
 
   if (error) throw error;
-  return { ...data, idNumber: data.id_number };
+  return {
+    ...data,
+    idNumber: data.id_number,
+    taxNumber: data.tax_number,
+    emergencyContactName: data.emergency_contact_name,
+    emergencyContactPhone: data.emergency_contact_phone,
+    medicalConditions: data.medical_conditions,
+    preferredDentist: data.preferred_dentist_id,
+  };
 }
 
 /**
