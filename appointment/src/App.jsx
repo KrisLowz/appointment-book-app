@@ -65,11 +65,16 @@ export default function App() {
   const [profileError, setProfileError] = useState('');
   const [bookingLink, setBookingLink] = useState('');
 
+  // Responsive Sidebar State
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+  const closeSidebar = () => setSidebarOpen(false);
+
   const handleLogout = () => {
     if (supabaseSession) {
       supabase.auth
         .signOut({ scope: 'local' })
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => clearSupabaseAuthStorage());
     } else {
       clearSupabaseAuthStorage();
@@ -362,14 +367,30 @@ export default function App() {
     <div className="app-container">
       <Sidebar
         view={view}
-        onChange={setView}
+        onChange={(newView) => {
+          setView(newView);
+          closeSidebar(); // Close sidebar on mobile when navigating
+        }}
         theme={theme}
         setTheme={setTheme}
         onLogout={handleLogout}
         bookingLink={bookingLink}
+        isOpen={sidebarOpen}
+        onClose={closeSidebar}
       />
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={closeSidebar}
+        />
+      )}
       <main className="main-content">
-        <Header title={viewTitle} onNewAppointment={() => setShowAppointmentModal(true)} />
+        <Header
+          title={viewTitle}
+          onNewAppointment={() => setShowAppointmentModal(true)}
+          onToggleSidebar={toggleSidebar}
+        />
         <div className="content">
           {view === 'calendar' && (
             <CalendarView
@@ -390,15 +411,15 @@ export default function App() {
             />
           )}
           {view === 'today' && (
-          <TodayView
-            appointments={appointments}
-            patients={patients}
-            rooms={rooms}
-            treatments={treatments}
-            onAppointmentSelect={handleAppointmentClick}
-            onNewAppointment={() => setShowAppointmentModal(true)}
-          />
-        )}
+            <TodayView
+              appointments={appointments}
+              patients={patients}
+              rooms={rooms}
+              treatments={treatments}
+              onAppointmentSelect={handleAppointmentClick}
+              onNewAppointment={() => setShowAppointmentModal(true)}
+            />
+          )}
           {view === 'patients' && (
             <PatientsView
               patients={patients}

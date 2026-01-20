@@ -370,16 +370,43 @@ export default function AdminDashboard({ onLogout }) {
     setConfirmDialog({ open: false, type: '', payload: null });
   };
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ... existing code ...
+
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar">
-        <div className="admin-brand">
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="admin-sidebar-header-mobile">
+          <div className="admin-brand">
+            <div className="admin-brand-mark">AB</div>
+            <div className="admin-brand-title">Admin</div>
+          </div>
+          <button
+            className="btn btn-icon sidebar-close-btn"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        {/* Desktop Brand (hidden on mobile header inside sidebar if specific styles used, generally ok to keep) */}
+        <div className="admin-brand desktop-only">
           <div className="admin-brand-mark">AB</div>
           <div>
             <div className="admin-brand-title">Admin</div>
             <div className="admin-brand-subtitle">Clinic Ops</div>
           </div>
         </div>
+
         <div className="admin-nav-label">Navigation</div>
         <nav className="admin-nav" role="tablist" aria-label="Admin sections">
           {[
@@ -391,7 +418,10 @@ export default function AdminDashboard({ onLogout }) {
             <button
               key={tab.id}
               className={`admin-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setSidebarOpen(false);
+              }}
               role="tab"
               aria-selected={activeTab === tab.id}
             >
@@ -409,8 +439,17 @@ export default function AdminDashboard({ onLogout }) {
       <main className="admin-main">
         <header className="admin-topbar">
           <div className="admin-topbar-left">
-            <div className="admin-title">Admin Dashboard</div>
-            <div className="admin-subtitle">Multi-clinic management and audit overview</div>
+            <button
+              className="btn btn-icon mobile-menu-btn"
+              onClick={() => setSidebarOpen(true)}
+              style={{ marginRight: 12 }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div>
+              <div className="admin-title">Admin Dashboard</div>
+              <div className="admin-subtitle">Multi-clinic management</div>
+            </div>
           </div>
           <div className="admin-topbar-right">
             <button className="btn btn-secondary btn-sm" onClick={refresh}>
@@ -456,31 +495,31 @@ export default function AdminDashboard({ onLogout }) {
                 </div>
               </div>
               <div className="admin-metrics">
-              <div className="admin-card">
-                <div className="admin-card-label">Clinics</div>
-                <div className="admin-card-value">{totals.clinics}</div>
-                <div className="admin-card-meta">Active accounts</div>
-              </div>
-              <div className="admin-card">
-                <div className="admin-card-label">Users</div>
-                <div className="admin-card-value">{totals.users}</div>
-                <div className="admin-card-meta">All roles</div>
-              </div>
-              <div className="admin-card">
-                <div className="admin-card-label">Patients</div>
-                <div className="admin-card-value">{totals.patients}</div>
-                <div className="admin-card-meta">Across clinics</div>
-              </div>
-              <div className="admin-card">
-                <div className="admin-card-label">Appointments</div>
-                <div className="admin-card-value">{totals.appointments}</div>
-                <div className="admin-card-meta">All statuses</div>
-              </div>
-              <div className="admin-card">
-                <div className="admin-card-label">Staff</div>
-                <div className="admin-card-value">{totals.staff}</div>
-                <div className="admin-card-meta">Dentists + Nurses</div>
-              </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Clinics</div>
+                  <div className="admin-card-value">{totals.clinics}</div>
+                  <div className="admin-card-meta">Active accounts</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Users</div>
+                  <div className="admin-card-value">{totals.users}</div>
+                  <div className="admin-card-meta">All roles</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Patients</div>
+                  <div className="admin-card-value">{totals.patients}</div>
+                  <div className="admin-card-meta">Across clinics</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Appointments</div>
+                  <div className="admin-card-value">{totals.appointments}</div>
+                  <div className="admin-card-meta">All statuses</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Staff</div>
+                  <div className="admin-card-value">{totals.staff}</div>
+                  <div className="admin-card-meta">Dentists + Nurses</div>
+                </div>
               </div>
             </section>
 

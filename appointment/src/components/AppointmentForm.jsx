@@ -1,6 +1,6 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
-import { addMinutes } from '../utils/time';
+import { addMinutes, formatTime, minutesToTime } from '../utils/time';
 import { todayISO } from '../utils/date';
 import { getInitials } from '../utils/people';
 import { getColorBg } from '../utils/colors';
@@ -38,7 +38,18 @@ export default function AppointmentForm({
   const today = todayISO();
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const minDate = isEditing ? undefined : today;
-  const minTime = !isEditing && form.date === today ? currentTime : undefined;
+
+  // Working Hours Constraints
+  const workingStart = settings?.workingHours?.start || '00:00';
+  const workingEnd = settings?.workingHours?.end || '23:59';
+
+  // If today, min time is the LATER of (Now, Working Start)
+  // If future date, min time is Working Start
+  let minTime = workingStart;
+  if (!isEditing && form.date === today) {
+    minTime = currentTime > workingStart ? currentTime : workingStart;
+  }
+  const maxTime = workingEnd;
 
   useEffect(() => {
     if (initialData) {
@@ -116,6 +127,17 @@ export default function AppointmentForm({
     if (!isEditing && (form.date < today || (form.date === today && form.startTime <= currentTime))) {
       alert('Please choose a future date and time.');
       return;
+    }
+
+    // Working Hours Validation
+    if (settings && settings.workingHours) {
+      const { start, end } = settings.workingHours;
+      if (start && end) {
+        if (form.startTime < start || endTime > end) {
+          alert(`Appointment must be within working hours (${formatTime(start)} - ${formatTime(end)}).`);
+          return;
+        }
+      }
     }
     onSave({
       ...form,
@@ -214,16 +236,42 @@ export default function AppointmentForm({
             <div className="form-group">
               <label className="form-label">Time</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  className="form-input"
-                  type="time"
+                <select
+                  className="form-select"
                   value={form.startTime}
                   onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                  min={minTime}
                   required
-                />
+                >
+                  {(() => {
+                    const startMin = Number(workingStart.split(':')[0]) * 60 + Number(workingStart.split(':')[1]);
+                    const endMin = Number(workingEnd.split(':')[0]) * 60 + Number(workingEnd.split(':')[1]);
+                    const step = 15; // fixed step for dropdown
+                    const slots = [];
+
+                    for (let m = startMin; m < endMin; m += step) {
+                      const timeStr = minutesToTime(m);
+                      // If today, filter out past times
+                      if (!isEditing && form.date === today && timeStr <= currentTime) {
+                        continue;
+                      }
+                      slots.push(timeStr);
+                    }
+
+                    // If current startTime is not in slots (e.g. from editing an odd time), add it
+                    if (form.startTime && !slots.includes(form.startTime)) {
+                      slots.push(form.startTime);
+                      slots.sort();
+                    }
+
+                    if (slots.length === 0) return <option disabled>No slots available</option>;
+
+                    return slots.map(t => (
+                      <option key={t} value={t}>{formatTime(t)}</option>
+                    ));
+                  })()}
+                </select>
                 <span className="text-muted" style={{ fontSize: 12 }}>to</span>
-                <input className="form-input" type="time" value={endTime} readOnly />
+                <input className="form-input" type="time" value={endTime} readOnly disabled style={{ background: 'var(--bg-secondary)' }} />
               </div>
             </div>
           </div>

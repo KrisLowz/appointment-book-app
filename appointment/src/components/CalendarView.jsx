@@ -156,7 +156,11 @@ export default function CalendarView({
                       <span className={`day-appointment-dot status-${statusClass(apt.status)}`} />
                       <span className="day-appointment-time">{formatTime(apt.startTime)}</span>
                       <span className="day-appointment-title">
-                        {patientName(apt.patientId)}
+                        {(() => {
+                          const name = patientName(apt.patientId);
+                          // Truncate name to ~10-12 chars for cleaner month view
+                          return name.length > 12 ? name.substring(0, 12) + '...' : name;
+                        })()}
                       </span>
                     </div>
                   ))}
