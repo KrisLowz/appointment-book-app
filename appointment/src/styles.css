@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ============================================
    Appointment Book App - Calm UI Design System
@@ -20,34 +20,36 @@
   --primary-bg: #E6ECF7;
 
   /* Success - Muted Green */
-  --success: #4F8F7B;
-  --success-light: #75A894;
-  --success-dark: #3B6E5F;
-  --success-bg: #E6F1ED;
+  --success: #36B37E;
+  --success-light: #57D9A3;
+  --success-dark: #006644;
+  --success-bg: #E3FCEF;
 
   /* Warning - Soft Amber */
-  --warning: #C59A52;
-  --warning-light: #D8B479;
-  --warning-dark: #A57C3E;
-  --warning-bg: #F8F0E1;
+  --warning: #FFAB00;
+  --warning-light: #FFE380;
+  --warning-dark: #BF8700;
+  --warning-bg: #FFF0B3;
 
   /* Danger - Muted Red */
-  --danger: #C46A6A;
-  --danger-light: #D58C8C;
-  --danger-dark: #A85353;
-  --danger-bg: #F6E6E6;
+  --danger: #FF5630;
+  --danger-light: #FF8F73;
+  --danger-dark: #DE350B;
+  --danger-bg: #FFEBE6;
 
   /* Purple - Accent (muted) */
-  --purple: #6C6AA8;
-  --purple-light: #8B89C0;
-  --purple-dark: #4E4C7D;
-  --purple-bg: #EDECF6;
+  --purple: #6554C0;
+  --purple-light: #8777D9;
+  --purple-dark: #403294;
+  --purple-bg: #EAE6FF;
 
   /* Neutrals */
-  --text-primary: #374151;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
-  --border: #E5E7EB;
+  --text-primary: #172B4D;
+  /* Deep Navy */
+  --text-secondary: #5E6C84;
+  --text-muted: #97A0AF;
+  --border: #DFE1E6;
+  /* Surgical Steel */
   --border-light: #F3F4F6;
   --border-strong: #D1D5DB;
 
@@ -98,8 +100,8 @@
   --transition-slow: 0.3s ease;
 
   /* Typography */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Roboto, Oxygen, Ubuntu, sans-serif;
-  --font-family-admin: 'Space Grotesk', 'Segoe UI', sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Roboto, Oxygen, Ubuntu, sans-serif;
+  --font-family-admin: 'Inter', -apple-system, sans-serif;
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -417,17 +419,22 @@ textarea:focus-visible,
 
 .booking-choice {
   text-align: left;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
+  background: white;
   padding: var(--space-lg);
   border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all var(--transition-normal);
+  /* Mr Bur Product Card Style */
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .booking-choice:hover {
-  border-color: var(--primary);
-  box-shadow: var(--shadow-sm);
+  border-color: var(--primary-light);
+  transform: translateY(-4px);
+  /* Lift effect */
+  box-shadow: 0 12px 24px rgba(0, 82, 204, 0.15);
+  /* Blue-tinted shadow */
 }
 
 .booking-choice.active {
@@ -749,6 +756,13 @@ textarea:focus-visible,
   color: var(--text-secondary);
 }
 
+.request-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
 .requests-filters {
   display: flex;
   gap: var(--space-sm);
@@ -908,8 +922,9 @@ textarea:focus-visible,
   flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-lg);
-  background: var(--surface);
-  color: var(--text);
+  background: var(--primary-dark);
+  /* Dark Navy Professional Look */
+  color: white;
   border-right: 1px solid var(--border);
 }
 
@@ -929,11 +944,10 @@ textarea:focus-visible,
   width: 40px;
   height: 40px;
   border-radius: var(--radius-full);
-  background: var(--primary-bg);
-  border: 1px solid rgba(36, 82, 160, 0.2);
+  background: white;
   display: grid;
   place-items: center;
-  color: var(--primary);
+  color: var(--primary-dark);
   font-weight: 700;
   letter-spacing: 0.4px;
 }
@@ -941,12 +955,12 @@ textarea:focus-visible,
 .admin-brand-title {
   font-size: var(--font-size-lg);
   font-weight: 600;
-  color: var(--text);
+  color: white;
 }
 
 .admin-brand-subtitle {
   font-size: var(--font-size-xs);
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .admin-nav {
@@ -964,25 +978,30 @@ textarea:focus-visible,
 .admin-nav-item {
   border: 1px solid transparent;
   background: transparent;
-  color: var(--text-secondary);
+  color: rgba(255, 255, 255, 0.7);
+  /* Muted white */
   padding: 10px 14px;
   border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   text-align: left;
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-weight: 500;
 }
 
 .admin-nav-item:hover {
-  background: var(--surface-2);
-  color: var(--primary);
-  border-color: rgba(36, 82, 160, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
 .admin-nav-item.active {
-  background: var(--primary-bg);
-  color: var(--primary);
-  font-weight: 600;
+  background: var(--primary);
+  /* Bright Blue Active */
+  color: white;
+  box-shadow: var(--shadow-sm);
 }
 
 .admin-sidebar-footer {
@@ -3311,6 +3330,34 @@ p {
   outline: none;
   border-color: var(--primary);
   box-shadow: var(--shadow-focus);
+}
+
+.form-input,
+.form-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-fast);
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* Subtle inner depth */
+}
+
+.form-input:hover,
+.form-select:hover {
+  border-color: var(--primary-light);
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(36, 82, 160, 0.15);
+  /* Professional Focus Ring */
+  background: white;
 }
 
 .search-icon {

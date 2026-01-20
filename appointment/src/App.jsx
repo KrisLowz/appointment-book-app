@@ -42,7 +42,7 @@ export default function App() {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+    // Default to light mode, ignoring system preference for now as requested
     return 'light';
   });
 
