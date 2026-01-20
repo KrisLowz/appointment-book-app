@@ -201,8 +201,12 @@ textarea:focus-visible,
    ============================================ */
 
 .login-page {
-  min-height: 100vh;
+  height: 100vh;
+  /* Match body height */
+  overflow-y: auto;
+  /* Enable internal scrolling */
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: var(--space-xl);
@@ -307,10 +311,13 @@ textarea:focus-visible,
    ============================================ */
 
 .booking-page {
-  min-height: 100vh;
+  height: 100vh;
+  /* Match body height */
+  overflow-y: auto;
+  /* Enable internal scrolling */
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  /* Robust layout */
   padding: var(--space-xl);
   background: radial-gradient(circle at top, rgba(36, 82, 160, 0.1), transparent 60%), var(--bg-primary);
 }
@@ -318,6 +325,8 @@ textarea:focus-visible,
 .booking-card {
   width: 100%;
   max-width: 720px;
+  margin: auto;
+  /* Centers vertically and horizontally, safe for overflow */
 }
 
 .booking-header {
@@ -6890,6 +6899,24 @@ tbody tr:hover {
     width: 90%;
     margin: 0 auto;
     padding: var(--space-lg);
+    box-shadow: none;
+    /* Simplify on mobile */
+    border: none;
+    background: transparent;
+  }
+
+  .login-page {
+    padding: var(--space-md);
+    background: var(--bg);
+    /* Ensure background is solid */
+    align-items: flex-start;
+    /* Align top on mobile */
+    padding-top: var(--space-xl);
+  }
+
+  .login-sample-accounts {
+    font-size: var(--font-size-xs);
+    padding: var(--space-md);
   }
 }
 
