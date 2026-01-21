@@ -69,7 +69,7 @@ export default function App() {
     let isActive = true;
     const loadClinicSlug = async () => {
       const { data, error } = await supabase
-        .from('clinics')
+        .from('apt_clinics')
         .select('slug')
         .eq('id', activeClinicId)
         .single();

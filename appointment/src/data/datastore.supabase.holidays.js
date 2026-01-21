@@ -12,7 +12,7 @@ const mapHoliday = (row) => ({
 
 export async function getHolidays(clinicId) {
   const { data, error } = await supabase
-    .from("holidays")
+    .from("apt_holidays")
     .select("*")
     .eq("clinic_id", clinicId)
     .order("start_date", { ascending: true });
@@ -30,7 +30,7 @@ export async function addHoliday(clinicId, holiday) {
     is_public: holiday.isPublic || false,
   };
   const { data, error } = await supabase
-    .from("holidays")
+    .from("apt_holidays")
     .insert(payload)
     .select("*")
     .single();
@@ -47,7 +47,7 @@ export async function updateHoliday(id, updates) {
     ...(updates.isPublic !== undefined ? { is_public: updates.isPublic } : {}),
   };
   const { data, error } = await supabase
-    .from("holidays")
+    .from("apt_holidays")
     .update(payload)
     .eq("id", id)
     .select("*")

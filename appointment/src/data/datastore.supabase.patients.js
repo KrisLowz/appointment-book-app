@@ -7,7 +7,7 @@ import { supabase } from "../lib/supabaseClient";
 
 export async function getPatients(clinicId, limit = 50, offset = 0) {
   const { data, error } = await supabase
-    .from("patients")
+    .from("apt_patients")
     .select("*")
     .eq("clinic_id", clinicId)
     .order("created_at", { ascending: false })
@@ -51,7 +51,7 @@ export async function addPatient(clinicId, patient) {
   };
 
   const { data, error } = await supabase
-    .from("patients")
+    .from("apt_patients")
     .insert(payload)
     .select("*")
     .single();
@@ -91,7 +91,7 @@ export async function updatePatient(patientUuid, updates) {
   if (updates.notes !== undefined) payload.notes = updates.notes;
 
   const { data, error } = await supabase
-    .from("patients")
+    .from("apt_patients")
     .update(payload)
     .eq("id", patientUuid)
     .select("*")
@@ -118,7 +118,7 @@ export async function deletePatient(patientUuid) {
 
 export async function getPatientById(patientUuid) {
   const { data, error } = await supabase
-    .from("patients")
+    .from("apt_patients")
     .select("*")
     .eq("id", patientUuid)
     .single();
@@ -146,7 +146,7 @@ export async function searchPatients(clinicId, query) {
   // We need to ensure logic is: clinic_id=ID AND (name ilike q OR ...)
   const term = `%${q}%`;
   const { data, error } = await supabase
-    .from("patients")
+    .from("apt_patients")
     .select("*")
     .eq("clinic_id", clinicId)
     .or(`name.ilike.${term},phone.ilike.${term},email.ilike.${term},id_number.ilike.${term},address.ilike.${term}`)

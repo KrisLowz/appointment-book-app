@@ -8,7 +8,7 @@ const mapRoom = (row) => ({
 
 export async function getRooms(clinicId) {
   const { data, error } = await supabase
-    .from("rooms")
+    .from("apt_rooms")
     .select("*")
     .eq("clinic_id", clinicId)
     .order("name", { ascending: true });
@@ -23,7 +23,7 @@ export async function addRoom(clinicId, room) {
     color: room.color || null,
   };
   const { data, error } = await supabase
-    .from("rooms")
+    .from("apt_rooms")
     .insert(payload)
     .select("*")
     .single();
@@ -37,7 +37,7 @@ export async function updateRoom(id, updates) {
     ...(updates.color !== undefined ? { color: updates.color } : {}),
   };
   const { data, error } = await supabase
-    .from("rooms")
+    .from("apt_rooms")
     .update(payload)
     .eq("id", id)
     .select("*")

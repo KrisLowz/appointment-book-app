@@ -101,7 +101,7 @@ export default function PublicBookingView({ clinicSlug }) {
       setLoading(true);
       setError('');
       const { data, error: loadError } = await supabase
-        .from('clinics')
+        .from('apt_clinics')
         .select('id, name, slug')
         .eq('slug', clinicSlug)
         .maybeSingle();
@@ -135,18 +135,18 @@ export default function PublicBookingView({ clinicSlug }) {
     const loadClinicData = async () => {
       const [{ data: dentistData }, { data: treatmentData }, { data: settingsData }] = await Promise.all([
         supabase
-          .from('staff')
+          .from('apt_staff')
           .select('id, name, role')
           .eq('clinic_id', clinic.id)
           .eq('role', 'dentist')
           .order('name', { ascending: true }),
         supabase
-          .from('treatments')
+          .from('apt_treatments')
           .select('id, name, duration')
           .eq('clinic_id', clinic.id)
           .order('name', { ascending: true }),
         supabase
-          .from('settings')
+          .from('apt_settings')
           .select('working_hours_start, working_hours_end, slot_duration, rest_days')
           .eq('clinic_id', clinic.id)
           .maybeSingle(),
@@ -189,7 +189,7 @@ export default function PublicBookingView({ clinicSlug }) {
 
     const timer = setTimeout(async () => {
       const { data, error: lookupErr } = await supabase
-        .from('patients')
+        .from('apt_patients')
         .select('id, name, phone, email, id_number, address')
         .eq('clinic_id', clinic.id)
         .ilike('email', email)

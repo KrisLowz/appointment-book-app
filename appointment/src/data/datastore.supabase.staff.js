@@ -16,7 +16,7 @@ const mapStaff = (row) => ({
 
 export async function getStaff(clinicId) {
   const { data, error } = await supabase
-    .from("staff")
+    .from("apt_staff")
     .select("*")
     .eq("clinic_id", clinicId)
     .order("created_at", { ascending: true });
@@ -38,7 +38,7 @@ export async function addStaff(clinicId, staffMember) {
     assigned_to: staffMember.assignedTo || null,
   };
   const { data, error } = await supabase
-    .from("staff")
+    .from("apt_staff")
     .insert(payload)
     .select("*")
     .single();
@@ -59,7 +59,7 @@ export async function updateStaff(id, updates) {
     ...(updates.assignedTo !== undefined ? { assigned_to: updates.assignedTo || null } : {}),
   };
   const { data, error } = await supabase
-    .from("staff")
+    .from("apt_staff")
     .update(payload)
     .eq("id", id)
     .select("*")
