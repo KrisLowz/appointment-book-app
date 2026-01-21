@@ -5,12 +5,13 @@ import { supabase } from "../lib/supabaseClient";
  * Expect clinicId to be the ACTIVE CLINIC UUID stored in localStorage.
  */
 
-export async function getPatients(clinicId) {
+export async function getPatients(clinicId, limit = 50, offset = 0) {
   const { data, error } = await supabase
     .from("patients")
     .select("*")
     .eq("clinic_id", clinicId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) throw error;
 
@@ -135,25 +136,31 @@ export async function getPatientById(patientUuid) {
 }
 
 /**
- * Search: simplest approach is client-side filter after fetching,
- * because your current DataStore searches local array.
- * (Later you can add server-side search with ilike.)
+ * Server-side search
  */
 export async function searchPatients(clinicId, query) {
-  const q = (query || "").trim().toLowerCase();
-  const patients = await getPatients(clinicId);
+  const q = (query || "").trim();
+  if (!q) return getPatients(clinicId, 20, 0);
 
-  if (!q) return patients;
+  // Note: 'or' syntax in Supabase is strictly filtered by the other chained methods.
+  // We need to ensure logic is: clinic_id=ID AND (name ilike q OR ...)
+  const term = `%${q}%`;
+  const { data, error } = await supabase
+    .from("patients")
+    .select("*")
+    .eq("clinic_id", clinicId)
+    .or(`name.ilike.${term},phone.ilike.${term},email.ilike.${term},id_number.ilike.${term},address.ilike.${term}`)
+    .limit(20);
 
-  return patients.filter((p) => {
-    const idNumber = (p.id_number || "").toLowerCase();
-    const addr = (p.address || "").toLowerCase();
-    return (
-      (p.name || "").toLowerCase().includes(q) ||
-      (p.phone || "").includes(query) ||
-      (p.email || "").toLowerCase().includes(q) ||
-      idNumber.includes(q) ||
-      addr.includes(q)
-    );
-  });
+  if (error) throw error;
+
+  return (data || []).map(p => ({
+    ...p,
+    idNumber: p.id_number,
+    taxNumber: p.tax_number,
+    emergencyContactName: p.emergency_contact_name,
+    emergencyContactPhone: p.emergency_contact_phone,
+    medicalConditions: p.medical_conditions,
+    preferredDentist: p.preferred_dentist_id,
+  }));
 }

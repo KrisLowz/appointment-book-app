@@ -198,10 +198,25 @@ export default function App() {
     clearAll,
     updateAppointmentRequest,
     refreshRequests,
+    setDateRange,
+    searchPatients,
   } = useDataStore(activeClinicId, dataEnabled);
 
   const [view, setView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Sync date range for appointments
+  useEffect(() => {
+    if (!setDateRange) return;
+    // Fetch current month + previous + next to allow smooth navigation
+    const start = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+    const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+
+    setDateRange({
+      start: start.toISOString(),
+      end: end.toISOString(),
+    });
+  }, [currentDate, setDateRange]);
   const [calendarView, setCalendarView] = useState('month');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
@@ -493,6 +508,7 @@ export default function App() {
           initialData={appointmentDefaults}
           onSave={handleSaveAppointment}
           onDelete={handleDeleteAppointment}
+          searchPatients={searchPatients}
           onClose={() => {
             setShowAppointmentModal(false);
             setAppointmentDefaults(null);

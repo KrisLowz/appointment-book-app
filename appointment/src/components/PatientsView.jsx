@@ -11,21 +11,45 @@ export default function PatientsView({
   treatments,
   onNew,
   onEdit,
+  searchPatients,
 }) {
   const [query, setQuery] = useState('');
   const [expandedId, setExpandedId] = useState(null);
   const [page, setPage] = useState(1);
 
-  const filtered = useMemo(() => {
-    if (!query) return patients;
-    const q = query.toLowerCase();
-    return patients.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.email && p.email.toLowerCase().includes(q)) ||
-        (p.phone && p.phone.includes(q))
-    );
-  }, [patients, query]);
+  const [searchResults, setSearchResults] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+
+  // Debounced search
+  useEffect(() => {
+    if (!query) {
+      setSearchResults(null);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      if (searchPatients) {
+        setIsSearching(true);
+        try {
+          const results = await searchPatients(query);
+          setSearchResults(results);
+          setPage(1); // Reset to first page of results
+        } catch (e) {
+          console.error(e);
+        } finally {
+          setIsSearching(false);
+        }
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [query, searchPatients]);
+
+  const displayPatients = useMemo(() => {
+    if (query && searchResults) return searchResults;
+    if (query && !searchResults) return []; // Waiting for search
+    return patients; // Default list (50)
+  }, [patients, query, searchResults]);
+
+  const filtered = displayPatients; // Renaming for compatibility with below logic
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   useEffect(() => {
@@ -77,9 +101,12 @@ export default function PatientsView({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <button className="btn btn-primary" onClick={() => onNew()}>
-          + New Patient
-        </button>
+        <div style={{ marginLeft: 'auto' }}>
+          {isSearching && <span className="text-muted" style={{ marginRight: 10 }}>Searching...</span>}
+          <button className="btn btn-primary" onClick={() => onNew()}>
+            + New Patient
+          </button>
+        </div>
       </div>
       <div className="patient-list">
         {pagedPatients.map((p) => {

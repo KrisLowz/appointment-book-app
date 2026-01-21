@@ -12,7 +12,8 @@ export async function getActivityLog(clinicId) {
     .from("activity_log")
     .select("*")
     .eq("clinic_id", clinicId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
   if (error) throw error;
   return (data || []).map(mapActivity);
 }

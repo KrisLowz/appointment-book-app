@@ -16,6 +16,7 @@ export default function AppointmentForm({
   onClose,
   settings,
   initialData,
+  searchPatients,
 }) {
   const defaultDuration = settings && settings.slotDuration ? settings.slotDuration : 30;
   const [form, setForm] = useState({
@@ -97,11 +98,40 @@ export default function AppointmentForm({
   const endTime = useMemo(() => addMinutes(form.startTime, form.duration), [form.startTime, form.duration]);
   const selectedPatient = patients.find((p) => String(p.id) === String(form.patientId));
   const selectedTreatment = treatments.find((t) => String(t.id) === String(form.treatmentId));
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (!patientQuery) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      if (searchPatients) {
+        setIsSearching(true);
+        try {
+          // If we have less than 50 patients locally, we *could* filter locally, 
+          // but to be consistent with potential large datasets, let's always ask the server 
+          // or at least favor the server results if we can't find it locally.
+          // For now, let's rely on server search.
+          const results = await searchPatients(patientQuery);
+          setSearchResults(results);
+        } catch (err) {
+          console.error("Search failed", err);
+        } finally {
+          setIsSearching(false);
+        }
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [patientQuery, searchPatients]);
+
   const filteredPatients = useMemo(() => {
     if (!patientQuery) return patients;
-    const q = patientQuery.toLowerCase();
-    return patients.filter((p) => (p.name || '').toLowerCase().includes(q));
-  }, [patients, patientQuery]);
+    return searchResults;
+  }, [patients, patientQuery, searchResults]);
 
   const isDentistBusy = (dentistId) => {
     if (!dentistId) return false;
@@ -198,7 +228,8 @@ export default function AppointmentForm({
                   onChange={(e) => setPatientQuery(e.target.value)}
                 />
                 <div className="patient-list">
-                  {filteredPatients.map((p) => (
+                  {isSearching && <div style={{ padding: 12, color: 'var(--text-muted)' }}>Searching...</div>}
+                  {!isSearching && filteredPatients.map((p) => (
                     <div
                       key={p.id}
                       className={`patient-item ${String(form.patientId) === String(p.id) ? 'selected' : ''}`}
@@ -211,7 +242,7 @@ export default function AppointmentForm({
                       </div>
                     </div>
                   ))}
-                  {filteredPatients.length === 0 && (
+                  {!isSearching && filteredPatients.length === 0 && (
                     <div className="empty-state" style={{ padding: 12 }}>
                       No matching patients.
                     </div>

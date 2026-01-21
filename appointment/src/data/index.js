@@ -27,7 +27,7 @@ const DataStore = {
   useSupabase: true,
   canCreateUsers: import.meta.env.VITE_ENABLE_ADMIN_CREATE_USERS === "true",
 
-  init() {},
+  init() { },
 
   clearLegacyLocalData() {
     const prefix = "appointmentApp_";
@@ -188,10 +188,10 @@ const DataStore = {
   },
 
   // ============ PATIENTS ============
-  async getPatients(clinicId) {
+  async getPatients(clinicId, limit = 50, offset = 0) {
     const activeClinic = getClinicId(clinicId);
     if (!activeClinic) return [];
-    return Patients.getPatients(activeClinic);
+    return Patients.getPatients(activeClinic, limit, offset);
   },
 
   async addPatient(patient) {
@@ -238,10 +238,10 @@ const DataStore = {
   },
 
   // ============ APPOINTMENTS ============
-  async getAppointments(clinicId) {
+  async getAppointments(clinicId, startDate, endDate) {
     const activeClinic = getClinicId(clinicId);
     if (!activeClinic) return [];
-    return Appointments.getAppointments(activeClinic);
+    return Appointments.getAppointments(activeClinic, startDate, endDate);
   },
 
   async addAppointment(appointment) {

@@ -13,6 +13,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
   const [holidays, setHolidays] = useState([]);
   const [appointmentRequests, setAppointmentRequests] = useState([]);
   const [isReady, setIsReady] = useState(false);
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
 
   const toPromise = (value) => (value && typeof value.then === 'function' ? value : Promise.resolve(value));
 
@@ -30,11 +31,11 @@ export default function useDataStore(activeClinicId, enabled = true) {
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      setIsReady(false);
-      if (!enabled) {
-        return;
-      }
+    // Load everything EXCEPT appointments on initial load or clinic change
+    const loadStatic = async () => {
+      if (!enabled) return;
+
+      // If clinic changes, we need to reset everything
       if (activeClinicId) {
         DataStore.setActiveClinicId(activeClinicId);
       } else {
@@ -50,9 +51,9 @@ export default function useDataStore(activeClinicId, enabled = true) {
         return;
       }
 
+      // Fetch static data
       const results = await Promise.allSettled([
         toPromise(DataStore.getPatients()),
-        toPromise(DataStore.getAppointments()),
         toPromise(DataStore.getRooms()),
         toPromise(DataStore.getTreatments()),
         toPromise(DataStore.getSettings()),
@@ -67,33 +68,46 @@ export default function useDataStore(activeClinicId, enabled = true) {
       const getValue = (index, fallback) =>
         results[index].status === 'fulfilled' ? results[index].value ?? fallback : fallback;
 
-      const loadErrors = results
-        .map((result, index) => (result.status === 'rejected' ? { index, error: result.reason } : null))
-        .filter(Boolean);
-      if (loadErrors.length) {
-        console.error('DataStore load failures:', loadErrors);
-      }
-
       setPatients(getValue(0, []));
-      setAppointments(getValue(1, []));
-      setRooms(getValue(2, []));
-      setTreatments(getValue(3, []));
-      setSettings(getValue(4, null));
-      setActivity(getValue(5, []));
-      setStaff(getValue(6, []));
-      setHolidays(getValue(7, []));
-      setAppointmentRequests(getValue(8, []));
+      setRooms(getValue(1, []));
+      setTreatments(getValue(2, []));
+      setSettings(getValue(3, null));
+      setActivity(getValue(4, []));
+      setStaff(getValue(5, []));
+      setHolidays(getValue(6, []));
+      setAppointmentRequests(getValue(7, []));
       setIsReady(true);
     };
 
-    load().catch((error) => console.error('Failed to load data:', error));
+    loadStatic().catch(console.error);
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeClinicId, enabled]);
 
-  const refreshAppointments = () => handleAsync(DataStore.getAppointments(), (data) => setAppointments(data || []));
+  // Separate effect for Appointments that depends on dateRange
+  useEffect(() => {
+    let cancelled = false;
+    if (!enabled || !activeClinicId || !dateRange.start) return;
+
+    const loadAppointments = async () => {
+      try {
+        const data = await DataStore.getAppointments(activeClinicId, dateRange.start, dateRange.end);
+        if (!cancelled) setAppointments(data || []);
+      } catch (err) {
+        console.error("Failed to load appointments", err);
+      }
+    };
+
+    loadAppointments();
+    return () => { cancelled = true; };
+  }, [activeClinicId, enabled, dateRange]);
+
+  const refreshAppointments = () => {
+    handleAsync(
+      DataStore.getAppointments(activeClinicId, dateRange.start, dateRange.end),
+      (data) => setAppointments(data || [])
+    );
+  };
   const refreshPatients = () => handleAsync(DataStore.getPatients(), (data) => setPatients(data || []));
   const refreshRooms = () => handleAsync(DataStore.getRooms(), (data) => setRooms(data || []));
   const refreshTreatments = () => handleAsync(DataStore.getTreatments(), (data) => setTreatments(data || []));
@@ -248,6 +262,8 @@ export default function useDataStore(activeClinicId, enabled = true) {
     holidays,
     appointmentRequests,
     isReady,
+    dateRange,
+    setDateRange,
     addPatient,
     updatePatient,
     deletePatient,
@@ -270,6 +286,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
     deleteHoliday,
     clearAll,
     refreshRequests,
+    searchPatients: (query) => DataStore.searchPatients(query),
     updateAppointmentRequest: (id, updates) =>
       handleAsync(DataStore.updateAppointmentRequest(id, updates), () => {
         refreshRequests();
