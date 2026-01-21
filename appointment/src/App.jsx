@@ -16,6 +16,7 @@ import AdminDashboard from './components/AdminDashboard';
 import PublicBookingView from './components/PublicBookingView';
 import ConfirmDialog from './components/ConfirmDialog';
 import { todayISO } from './utils/date';
+import { startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { supabase } from './lib/supabaseClient';
 import DataStore from "./data";
 
@@ -209,8 +210,8 @@ export default function App() {
   useEffect(() => {
     if (!setDateRange) return;
     // Fetch current month + previous + next to allow smooth navigation
-    const start = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-    const end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+    const start = startOfMonth(subMonths(currentDate, 1));
+    const end = endOfMonth(addMonths(currentDate, 1));
 
     setDateRange({
       start: start.toISOString(),

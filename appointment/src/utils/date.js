@@ -1,22 +1,31 @@
-﻿export const toISODate = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+﻿import { format, parseISO, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, isSameDay, eachDayOfInterval } from 'date-fns';
+
+/**
+ * Returns YYYY-MM-DD string
+ */
+export const toISODate = (date) => {
+  return format(date, 'yyyy-MM-dd');
 };
 
-export const todayISO = () => toISODate(new Date());
+/**
+ * Returns "Today" as YYYY-MM-DD
+ */
+export const todayISO = () => format(new Date(), 'yyyy-MM-dd');
 
-export const formatMonthTitle = (date) =>
-  date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+/**
+ * Formats "September 2023"
+ */
+export const formatMonthTitle = (date) => format(date, 'MMMM yyyy');
 
-export const formatDayLong = (date) =>
-  date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+/**
+ * Formats "Monday, Sep 21"
+ */
+export const formatDayLong = (date) => format(date, 'EEEE, MMM d');
 
-export const sameDate = (a, b) => {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-};
+/**
+ * Checks if two dates are exactly same YYYY-MM-DD
+ */
+export const sameDate = (d1, d2) => isSameDay(d1, d2);
+
+// Exports for Calendar Grid
+export { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, addMonths, subMonths, isSameMonth, eachDayOfInterval };

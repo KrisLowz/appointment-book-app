@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { buildHolidayMap } from '../utils/calendar';
-import { toISODate, todayISO, sameDate } from '../utils/date';
+import { toISODate, todayISO, sameDate, startOfWeek, endOfWeek, eachDayOfInterval } from '../utils/date';
 import { addMinutes, formatTime, minutesToTime } from '../utils/time';
 import { getColorBg } from '../utils/colors';
 import Modal from './Modal';
@@ -18,8 +18,10 @@ export default function WeekView({
   onAppointmentSelect,
   onAppointmentReschedule,
 }) {
-  const startHour = parseInt((settings && settings.workingHours && settings.workingHours.start) || '09:00', 10);
-  const endHour = parseInt((settings && settings.workingHours && settings.workingHours.end) || '18:00', 10);
+  const { start: startWork, end: endWork } = settings?.workingHours || { start: '09:00', end: '18:00' };
+  const startHour = parseInt(startWork, 10);
+  const endHour = parseInt(endWork, 10);
+
   const todayIso = todayISO();
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -29,10 +31,8 @@ export default function WeekView({
   const [dragPreview, setDragPreview] = useState(null);
   const [pendingReschedule, setPendingReschedule] = useState(null);
 
-  const startOfWeek = useMemo(() => {
-    const d = new Date(currentDate);
-    d.setDate(d.getDate() - d.getDay());
-    return d;
+  const startOfWeekDate = useMemo(() => {
+    return startOfWeek(currentDate, { weekStartsOn: 0 }); // Sunday start, consistent with local calendar
   }, [currentDate]);
 
   const patientName = (id) => {
@@ -49,13 +49,12 @@ export default function WeekView({
   };
   const snapMinutes = (minutes) => Math.round(minutes / 15) * 15;
 
-  const weekDays = Array(7)
-    .fill(0)
-    .map((_, i) => {
-      const d = new Date(startOfWeek);
-      d.setDate(d.getDate() + i);
-      return d;
+  const weekDays = useMemo(() => {
+    return eachDayOfInterval({
+      start: startOfWeekDate,
+      end: endOfWeek(startOfWeekDate)
     });
+  }, [startOfWeekDate]);
 
   return (
     <div className="week-view">

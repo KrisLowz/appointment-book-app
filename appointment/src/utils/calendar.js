@@ -1,40 +1,42 @@
-﻿import { toISODate } from './date';
+﻿
+
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, addDays, isSameMonth } from 'date-fns';
+import { toISODate } from './date';
 
 export function buildMonthGrid(currentDate) {
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const first = new Date(year, month, 1);
-  const firstWeekday = first.getDay(); // 0-6
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysPrevMonth = new Date(year, month, 0).getDate();
-  const cells = [];
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
 
-  for (let i = firstWeekday - 1; i >= 0; i--) {
-    const day = daysPrevMonth - i;
-    const d = new Date(year, month - 1, day);
-    cells.push({ date: d, inMonth: false });
-  }
+  const days = eachDayOfInterval({ start: startDate, end: endDate });
 
-  for (let day = 1; day <= daysInMonth; day++) {
-    cells.push({ date: new Date(year, month, day), inMonth: true });
-  }
-
-  while (cells.length % 7 !== 0) {
-    const day = cells.length - daysInMonth - firstWeekday + 1;
-    const d = new Date(year, month + 1, day);
-    cells.push({ date: d, inMonth: false });
-  }
-
-  return cells;
+  return days.map(day => ({
+    date: day,
+    inMonth: isSameMonth(day, monthStart),
+  }));
 }
 
 export function buildHolidayMap(holidays) {
   const map = {};
   holidays.forEach((h) => {
+    // holidays should be YYYY-MM-DD strings. 
+    // If they are valid ISO strings, "new Date(h.startDate)" works, but "parseISO" is safer for just strings.
+    // However, for holidays which are often just dates without times, simple string handling or robust parsing is needed.
+    // Let's assume h.startDate is YYYY-MM-DD.
+
+    // We need to iterate days.
     const start = new Date(h.startDate);
-    const end = new Date(h.endDate || h.startDate);
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      map[toISODate(d)] = h;
+    let end = new Date(h.endDate || h.startDate);
+
+    // Safety check if dates are valid
+    if (isNaN(start.getTime())) return;
+    if (isNaN(end.getTime())) end = start;
+
+    let current = start;
+    while (current <= end) {
+      map[toISODate(current)] = h;
+      current = addDays(current, 1);
     }
   });
   return map;
