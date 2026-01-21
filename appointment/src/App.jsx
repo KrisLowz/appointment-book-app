@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import useDataStore from './hooks/useDataStore';
+import { useAuth } from './context/AuthProvider';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import CalendarView from './components/CalendarView';
@@ -27,23 +28,20 @@ const getBookingSlugFromPath = () => {
 };
 
 export default function App() {
-  const clearSupabaseAuthStorage = () => {
-    try {
-      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        if (key.startsWith('sb-') || key.startsWith('supabase.auth.')) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to clear auth storage', err);
-    }
-  };
+  const {
+    session,
+    user,
+    profile,
+    role: authRole,
+    activeClinicId,
+    loading: authLoading,
+    error: authError,
+    signOut
+  } = useAuth();
+
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    // Default to light mode, ignoring system preference for now as requested
     return 'light';
   });
 
@@ -56,86 +54,12 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [authRole, setAuthRole] = useState('dentist');
-  const [supabaseSession, setSupabaseSession] = useState(null);
-  const [activeClinicId, setActiveClinicId] = useState(() => DataStore.getActiveClinicId());
-  const [profile, setProfile] = useState(null);
-  const [profileError, setProfileError] = useState('');
   const [bookingLink, setBookingLink] = useState('');
 
   // Responsive Sidebar State
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const toggleSidebar = () => setSidebarOpen(prev => !prev);
   const closeSidebar = () => setSidebarOpen(false);
-
-  const handleLogout = () => {
-    if (supabaseSession) {
-      supabase.auth
-        .signOut({ scope: 'local' })
-        .catch(() => { })
-        .finally(() => clearSupabaseAuthStorage());
-    } else {
-      clearSupabaseAuthStorage();
-    }
-    setIsLoggedIn(false);
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSupabaseSession(data.session);
-      setAuthChecked(true);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSupabaseSession(session);
-      setAuthChecked(true);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!supabaseSession?.user) {
-      setProfile(null);
-      setProfileError('');
-      setIsLoggedIn(false);
-      setProfileLoading(false);
-      return;
-    }
-    const loadProfile = async () => {
-      setProfileLoading(true);
-      setProfileError('');
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', supabaseSession.user.id)
-        .single();
-      if (error) {
-        console.error('Failed to load profile:', error);
-        setProfileError('Unable to load your profile. Please try again or contact support.');
-        setProfileLoading(false);
-        return;
-      }
-      setProfile(data);
-      setProfileLoading(false);
-    };
-    loadProfile();
-  }, [supabaseSession]);
-
-  useEffect(() => {
-    if (!profile) return;
-    const role = profile.account_type === 'admin' ? 'admin' : 'dentist';
-    setAuthRole(role);
-    setIsLoggedIn(true);
-    if (profile.clinic_id) {
-      DataStore.setActiveClinicId(profile.clinic_id);
-      setActiveClinicId(profile.clinic_id);
-    } else {
-      DataStore.setActiveClinicId(null);
-      setActiveClinicId(null);
-    }
-  }, [profile]);
 
   useEffect(() => {
     if (!activeClinicId) {
@@ -162,7 +86,7 @@ export default function App() {
     };
   }, [activeClinicId]);
 
-  const dataEnabled = Boolean(isLoggedIn && authRole !== 'admin' && activeClinicId);
+  const dataEnabled = Boolean(!!user && authRole !== 'admin' && activeClinicId);
 
   // Original single-file state wiring preserved, now split into modules.
   const {
@@ -319,7 +243,7 @@ export default function App() {
     return <PublicBookingView clinicSlug={bookingSlug} />;
   }
 
-  if (!authChecked || (supabaseSession?.user && profileLoading && !profile)) {
+  if (authLoading) {
     return (
       <div className="login-page">
         <div className="login-card">
@@ -330,13 +254,13 @@ export default function App() {
     );
   }
 
-  if (profileError) {
+  if (authError) {
     return (
       <div className="login-page">
         <div className="login-card">
           <h1 className="login-title">Something went wrong</h1>
-          <p className="login-subtitle">{profileError}</p>
-          <button className="btn btn-secondary" onClick={handleLogout}>
+          <p className="login-subtitle">{authError}</p>
+          <button className="btn btn-secondary" onClick={signOut}>
             Logout
           </button>
         </div>
@@ -344,7 +268,7 @@ export default function App() {
     );
   }
 
-  if (isLoggedIn && !isReady && authRole !== 'admin' && activeClinicId) {
+  if (user && !isReady && authRole !== 'admin' && activeClinicId) {
     return (
       <div className="login-page">
         <div className="login-card">
@@ -355,13 +279,13 @@ export default function App() {
     );
   }
 
-  if (!isLoggedIn) {
+  if (!user) {
     return <LoginView />;
   }
 
   if (authRole === 'admin') {
     return (
-      <AdminDashboard onLogout={handleLogout} />
+      <AdminDashboard onLogout={signOut} />
     );
   }
 
@@ -371,7 +295,7 @@ export default function App() {
         <div className="login-card">
           <h1 className="login-title">Clinic access pending</h1>
           <p className="login-subtitle">An admin needs to assign you to a clinic before you can access the app.</p>
-          <button className="btn btn-secondary" onClick={handleLogout}>
+          <button className="btn btn-secondary" onClick={signOut}>
             Logout
           </button>
         </div>
@@ -389,7 +313,7 @@ export default function App() {
         }}
         theme={theme}
         setTheme={setTheme}
-        onLogout={handleLogout}
+        onLogout={signOut}
         bookingLink={bookingLink}
         isOpen={sidebarOpen}
         onClose={closeSidebar}
@@ -474,7 +398,7 @@ export default function App() {
               updateHoliday={updateHoliday}
               deleteHoliday={deleteHoliday}
               clearAll={clearAll}
-              onLogout={handleLogout}
+              onLogout={signOut}
               theme={theme}
               setTheme={setTheme}
             />
