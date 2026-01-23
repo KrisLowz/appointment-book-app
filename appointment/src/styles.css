@@ -3357,7 +3357,7 @@ p {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(36, 82, 160, 0.15);
   /* Professional Focus Ring */
-  background: white;
+  background: var(--bg-card);
 }
 
 .search-icon {

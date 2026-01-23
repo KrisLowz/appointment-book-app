@@ -641,9 +641,9 @@ export default function AdminDashboard({ onLogout }) {
             <section className="admin-panel admin-wide">
               <div className="admin-panel-header">
                 <div className="admin-panel-title">Clinic Accounts</div>
-                <button className="btn btn-primary btn-sm" onClick={() => openClinicModal()}>
+                {/* <button className="btn btn-primary btn-sm" onClick={() => openClinicModal()}>
                   + Add Clinic
-                </button>
+                </button> */}
               </div>
               <div className="admin-list">
                 {clinicSummaries.map((clinic) => (
@@ -758,14 +758,14 @@ export default function AdminDashboard({ onLogout }) {
             <section className="admin-panel admin-wide">
               <div className="admin-panel-header">
                 <div className="admin-panel-title">User Accounts</div>
-                <button
+                {/* <button
                   className="btn btn-primary btn-sm"
                   onClick={() => openUserModal()}
                   disabled={!DataStore.canCreateUsers}
                   title={DataStore.canCreateUsers ? 'Create user' : 'Enable VITE_ENABLE_ADMIN_CREATE_USERS'}
                 >
                   + Create User
-                </button>
+                </button> */}
               </div>
               {!DataStore.canCreateUsers && (
                 <div className="form-hint" style={{ marginBottom: 12 }}>
