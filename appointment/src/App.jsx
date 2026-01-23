@@ -16,6 +16,7 @@ import LoginView from './components/LoginView';
 import AdminDashboard from './components/AdminDashboard';
 import PublicBookingView from './components/PublicBookingView';
 import ConfirmDialog from './components/ConfirmDialog';
+import CreditModal from './components/CreditModal';
 import { todayISO } from './utils/date';
 import { startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { supabase } from './lib/supabaseClient';
@@ -125,6 +126,9 @@ export default function App() {
     refreshRequests,
     setDateRange,
     searchPatients,
+    credits,
+    creditHistory,
+    addCredits,
   } = useDataStore(activeClinicId, dataEnabled);
 
   const [view, setView] = useState('calendar');
@@ -145,9 +149,11 @@ export default function App() {
   const [calendarView, setCalendarView] = useState('month');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [appointmentDefaults, setAppointmentDefaults] = useState(null);
   const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const bookingSlug = getBookingSlugFromPath();
 
   const viewTitle = {
@@ -163,11 +169,19 @@ export default function App() {
   const handleSaveAppointment = (data) => {
     if (data.id) {
       updateAppointment(data.id, data);
+      setShowAppointmentModal(false);
+      setAppointmentDefaults(null);
     } else {
-      addAppointment(data);
+      // Logic is now inside useDataStore.addAppointment
+      addAppointment(data)
+        .then(() => {
+          setShowAppointmentModal(false);
+          setAppointmentDefaults(null);
+        })
+        .catch((err) => {
+          alert(err.message || "Failed to create appointment");
+        });
     }
-    setShowAppointmentModal(false);
-    setAppointmentDefaults(null);
   };
 
   const handleDeleteAppointment = (data) => {
@@ -330,6 +344,8 @@ export default function App() {
           title={viewTitle}
           onNewAppointment={() => setShowAppointmentModal(true)}
           onToggleSidebar={toggleSidebar}
+          credits={credits}
+          onOpenCredits={() => setShowCreditModal(true)}
         />
         <div className="content">
           {view === 'calendar' && (
@@ -434,6 +450,7 @@ export default function App() {
           onSave={handleSaveAppointment}
           onDelete={handleDeleteAppointment}
           searchPatients={searchPatients}
+          credits={credits}
           onClose={() => {
             setShowAppointmentModal(false);
             setAppointmentDefaults(null);
@@ -450,6 +467,29 @@ export default function App() {
           onClose={() => {
             setShowPatientModal(false);
             setEditingPatient(null);
+          }}
+        />
+      )}
+
+      {showCreditModal && (
+        <CreditModal
+          credits={credits}
+          history={creditHistory}
+          loading={isRedeeming}
+          onClose={() => setShowCreditModal(false)}
+          onRedeem={async (code) => {
+            setIsRedeeming(true);
+            try {
+              if (code === 'DEMO10') {
+                await addCredits(10, 'Voucher Redemption: DEMO10');
+                alert('Start up credits added!');
+              } else {
+                await new Promise(r => setTimeout(r, 500)); // Fake delay for error too
+                alert('Invalid code. Try DEMO10.');
+              }
+            } finally {
+              setIsRedeeming(false);
+            }
           }}
         />
       )}

@@ -17,6 +17,7 @@ export default function AppointmentForm({
   settings,
   initialData,
   searchPatients,
+  credits,
 }) {
   const defaultDuration = settings && settings.slotDuration ? settings.slotDuration : 30;
   const [form, setForm] = useState({
@@ -153,6 +154,10 @@ export default function AppointmentForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isEditing && credits < 1) {
+      alert("Insufficient credits to create a new appointment.");
+      return;
+    }
     if (!form.patientId || !form.date || !form.startTime) return;
     if (!isEditing && (form.date < today || (form.date === today && form.startTime <= currentTime))) {
       alert('Please choose a future date and time.');
@@ -194,6 +199,10 @@ export default function AppointmentForm({
     { id: 'cancelled', label: 'Cancelled' },
     { id: 'no-show', label: 'No Show' },
   ];
+
+
+  const showCreditWarning = !isEditing && credits < 1;
+
 
   return (
     <Modal title={isEditing ? 'Edit Appointment' : 'New Appointment'} onClose={onClose}>
@@ -447,6 +456,11 @@ export default function AppointmentForm({
         </div>
 
         <div className="modal-footer">
+          {showCreditWarning && (
+            <div style={{ color: 'red', fontWeight: 'bold', marginRight: 'auto' }}>
+              Insufficient Credits (0)
+            </div>
+          )}
           <div className="flex-1"></div>
           {isEditing && (
             <button
@@ -460,7 +474,7 @@ export default function AppointmentForm({
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" disabled={showCreditWarning}>
             {isEditing ? 'Save Appointment' : 'Create Appointment'}
           </button>
         </div>

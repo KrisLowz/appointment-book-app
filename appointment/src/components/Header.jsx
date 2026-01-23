@@ -1,4 +1,4 @@
-﻿export default function Header({ title, onNewAppointment, onToggleSidebar }) {
+﻿export default function Header({ title, onNewAppointment, onToggleSidebar, credits, onOpenCredits }) {
   return (
     <header className="header">
       <div className="header-left">
@@ -17,6 +17,13 @@
         <h1 className="header-title">{title}</h1>
       </div>
       <div className="header-right">
+        <div
+          className="credit-badge"
+          onClick={onOpenCredits}
+          title="Click to manage credits"
+        >
+          Credits: {credits}
+        </div>
         <button className="btn btn-primary" type="button" onClick={onNewAppointment}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" />

@@ -14,6 +14,11 @@ export default function useDataStore(activeClinicId, enabled = true) {
   const [appointmentRequests, setAppointmentRequests] = useState([]);
   const [isReady, setIsReady] = useState(false);
   const [dateRange, setDateRange] = useState({ start: null, end: null });
+  // MOCK CREDIT SYSTEM
+  const [credits, setCredits] = useState(5);
+  const [creditHistory, setCreditHistory] = useState([
+    { date: new Date().toISOString(), description: 'Initial Balance', amount: 5 }
+  ]);
 
   const toPromise = (value) => (value && typeof value.then === 'function' ? value : Promise.resolve(value));
 
@@ -251,6 +256,42 @@ export default function useDataStore(activeClinicId, enabled = true) {
       refreshRequests();
     });
 
+  // Encapsulated Appointment Creation
+  const handleAddAppointment = (appointment) => {
+    return handleAsync((async () => {
+      // 1. Credit Check (Mock Logic)
+      if (credits < 1) {
+        throw new Error("Insufficient credits. Please top up.");
+      }
+
+      // 2. Decrement (Mock Logic)
+      setCredits(c => c - 1);
+      setCreditHistory(prev => [{
+        date: new Date().toISOString(),
+        description: 'Appointment Created',
+        amount: -1
+      }, ...prev]);
+
+      // 3. Proceed with DataStore call
+      return await DataStore.addAppointment(appointment);
+    })(), () => {
+      refreshAppointments();
+      refreshActivity();
+    });
+  };
+
+  // Async Credit Top-up
+  const handleAddCredits = async (amount, description) => {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+    setCredits(prev => prev + amount);
+    setCreditHistory(prev => [{
+      date: new Date().toISOString(),
+      description,
+      amount
+    }, ...prev]);
+  };
+
   return {
     patients,
     appointments,
@@ -267,7 +308,7 @@ export default function useDataStore(activeClinicId, enabled = true) {
     addPatient,
     updatePatient,
     deletePatient,
-    addAppointment,
+    addAppointment: handleAddAppointment,
     updateAppointment,
     deleteAppointment,
     saveSettings,
@@ -287,6 +328,13 @@ export default function useDataStore(activeClinicId, enabled = true) {
     clearAll,
     refreshRequests,
     searchPatients: (query) => DataStore.searchPatients(query),
+    // Mock Credits
+    credits,
+    creditHistory,
+    // Mock Credits
+    credits,
+    creditHistory,
+    addCredits: handleAddCredits,
     updateAppointmentRequest: (id, updates) =>
       handleAsync(DataStore.updateAppointmentRequest(id, updates), () => {
         refreshRequests();
