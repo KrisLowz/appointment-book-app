@@ -26,6 +26,7 @@ export default function AdminDashboard({ onLogout }) {
   const [modalState, setModalState] = useState({ type: null, mode: 'new' });
   const [clinicForm, setClinicForm] = useState({ id: '', name: '', city: '', plan: 'Starter', status: 'active' });
   const [userForm, setUserForm] = useState({ id: '', username: '', password: '', role: 'dentist', clinicId: '', name: '', status: 'active' });
+  const [userLoading, setUserLoading] = useState(false);
   const [detailModal, setDetailModal] = useState({ open: false, clinicId: '', type: '' });
   const [detailForm, setDetailForm] = useState({});
   const [detailSaving, setDetailSaving] = useState(false);
@@ -43,7 +44,7 @@ export default function AdminDashboard({ onLogout }) {
         DataStore.getAdminActivity(),
       ]);
       setClinics(clinicsData || []);
-      setUsers(usersData || []);
+      setUsers((usersData || []).filter(u => u.status !== 'inactive'));
       setAdminActivity(adminActivityData || []);
 
       const detailsEntries = await Promise.all(
@@ -170,7 +171,7 @@ export default function AdminDashboard({ onLogout }) {
       setModalState({ type: 'user', mode: 'edit' });
       return;
     }
-    setUserForm({ id: '', username: '', password: '', role: 'dentist', clinicId: clinics[0]?.id || '', name: '', status: 'active' });
+    setUserForm({ id: '', username: '', password: '', role: 'dentist', clinicId: '', name: '', status: 'active' });
     setModalState({ type: 'user', mode: 'new' });
   };
 
@@ -311,13 +312,25 @@ export default function AdminDashboard({ onLogout }) {
       alert('Enter password');
       return;
     }
+
+    setUserLoading(true);
     try {
       if (userForm.id) {
         await DataStore.updateUser(userForm.id, userForm);
         setUserSuccessMessage('User updated successfully.');
       } else {
         const created = await DataStore.addUser(userForm);
+
+        // Critical fix: created user starts with default metadata, we must update it
+        // with the specific selected clinic and role immediately
         if (created?.id) {
+          await DataStore.updateUser(created.id, {
+            clinicId: userForm.clinicId,
+            role: userForm.role,
+            name: userForm.name,
+            status: userForm.status
+          });
+
           setUsers((prev) => [
             {
               id: created.id,
@@ -331,13 +344,24 @@ export default function AdminDashboard({ onLogout }) {
             ...prev,
           ]);
         }
-        setUserSuccessMessage('User created. Ask them to verify their email before signing in.');
+        setUserSuccessMessage('User created successfully.');
       }
       await refresh();
-      closeModal();
+
+      // Don't close immediately if success, to show the message inside modal? 
+      // User asked for success message. If we close, we need to show it elsewhere.
+      // Let's keep modal open if it was a create action to show the success message, or close and show toast in list?
+      // "i need custom design not default browser message."
+      // Let's close and rely on the persisted userSuccessMessage showing in the list view (it's already there in JSX)
+      setTimeout(() => {
+        closeModal();
+        setUserLoading(false);
+      }, 1500);
+
     } catch (err) {
       alert(err.message || 'Failed to save user');
       console.error(err);
+      setUserLoading(false);
     }
   };
 
@@ -749,7 +773,18 @@ export default function AdminDashboard({ onLogout }) {
                 </div>
               )}
               {userSuccessMessage && (
-                <div className="form-hint" style={{ marginBottom: 12 }}>
+                <div className="admin-success-banner" style={{
+                  marginBottom: 16,
+                  padding: '12px 16px',
+                  backgroundColor: '#ecfdf5',
+                  color: '#047857',
+                  borderRadius: '8px',
+                  border: '1px solid #a7f3d0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
                   {userSuccessMessage}
                 </div>
               )}
@@ -905,8 +940,13 @@ export default function AdminDashboard({ onLogout }) {
             )}
             <div className="flex-1"></div>
             <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={handleUserSubmit}>
-              {modalState.mode === 'edit' ? 'Save User' : 'Add User'}
+            <button type="button" className="btn btn-primary" onClick={handleUserSubmit} disabled={userLoading}>
+              {userLoading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }}></span>
+                  Saving...
+                </span>
+              ) : (modalState.mode === 'edit' ? 'Save User' : 'Add User')}
             </button>
           </div>
         </Modal>
@@ -919,7 +959,168 @@ export default function AdminDashboard({ onLogout }) {
           <div className="modal-body">
             {detailError && <div className="form-error" style={{ marginBottom: 12 }}>{detailError}</div>}
             {detailModal.type === 'appointments' ? (
-              <div className="empty-state">Appointment edits are available in the clinic view.</div>
+              <div className="admin-appointment-view">
+                <div className="admin-filters" style={{
+                  marginBottom: 20,
+                  display: 'flex',
+                  gap: 12,
+                  background: '#f8fafc',
+                  padding: 12,
+                  borderRadius: 12,
+                  border: '1px solid #e2e8f0',
+                  alignItems: 'center'
+                }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input
+                      type="text"
+                      placeholder="Search patient, dentist or treatment..."
+                      className="admin-search-input"
+                      style={{ paddingLeft: 36, width: '100%' }}
+                      value={appointmentFilter.query}
+                      onChange={(e) => setAppointmentFilter(prev => ({ ...prev, query: e.target.value }))}
+                    />
+                  </div>
+                  <select
+                    className="admin-select"
+                    value={appointmentFilter.status}
+                    onChange={(e) => setAppointmentFilter(prev => ({ ...prev, status: e.target.value }))}
+                    style={{ minWidth: 140 }}
+                  >
+                    <option value="all">All Status</option>
+                    {[...new Set((clinicDetails[detailModal.clinicId]?.appointments || []).map(a => a.status).filter(Boolean))].sort().map(status => (
+                      <option key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(() => {
+                  const details = clinicDetails[detailModal.clinicId] || {};
+                  const rawAppointments = details.appointments || [];
+                  const patients = details.patients || [];
+                  const staff = details.staff || [];
+                  const treatments = details.treatments || [];
+                  const rooms = details.rooms || [];
+
+                  // 1. Hydrate appointments
+                  const appointments = rawAppointments.map(apt => {
+                    const patient = patients.find(p => p.id === apt.patientId);
+                    const dentist = staff.find(s => s.id === apt.dentistId);
+                    const treatment = treatments.find(t => t.id === apt.treatmentId);
+                    const room = rooms.find(r => r.id === apt.roomId);
+                    return {
+                      ...apt,
+                      patient,
+                      dentist,
+                      treatment,
+                      room,
+                      patientName: patient?.name || 'Unknown Patient',
+                      dentistName: dentist?.name || 'Unassigned',
+                      treatmentName: treatment?.name || 'Checkup'
+                    };
+                  });
+
+                  // 2. Filter
+                  const filtered = appointments.filter(apt => {
+                    const matchesStatus = appointmentFilter.status === 'all' || apt.status === appointmentFilter.status;
+                    const q = appointmentFilter.query.toLowerCase();
+                    const matchesQuery = !q ||
+                      apt.patientName.toLowerCase().includes(q) ||
+                      apt.dentistName.toLowerCase().includes(q) ||
+                      apt.treatmentName.toLowerCase().includes(q);
+                    return matchesStatus && matchesQuery;
+                  });
+
+                  // 3. Group by month
+                  const grouped = filtered.reduce((acc, apt) => {
+                    const monthKey = apt.date.slice(0, 7); // YYYY-MM
+                    if (!acc[monthKey]) acc[monthKey] = [];
+                    acc[monthKey].push(apt);
+                    return acc;
+                  }, {});
+
+                  const sortedMonths = Object.keys(grouped).sort().reverse();
+
+                  if (filtered.length === 0) return <div className="empty-state">No matching appointments</div>;
+
+                  return (
+                    <div className="admin-month-groups">
+                      {sortedMonths.map(month => {
+                        const dateObj = new Date(month + '-01');
+                        const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                        const isExpanded = expandedAppointmentMonths[month];
+
+                        return (
+                          <div key={month} className="admin-month-group" style={{ marginBottom: 12, border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', backgroundColor: '#fff' }}>
+                            <div
+                              className="admin-month-header"
+                              style={{ padding: '14px 20px', background: '#f8fafc', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: '0.95rem', color: '#334155' }}
+                              onClick={() => setExpandedAppointmentMonths(prev => ({ ...prev, [month]: !prev[month] }))}
+                            >
+                              <span>{monthLabel} <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 6 }}>({grouped[month].length})</span></span>
+                              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{isExpanded ? '▼' : '▶'}</span>
+                            </div>
+                            {isExpanded && (
+                              <div className="admin-month-body">
+                                {grouped[month].map(apt => {
+                                  const normalizedStatus = (apt.status || 'confirmed').toLowerCase().replace(' ', '-');
+                                  return (
+                                    <div key={apt.id} className="admin-appointment-card" style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>
+                                          <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: '#334155' }}>{apt.startTime}</span>
+                                          <span style={{ color: '#cbd5e1' }}>—</span>
+                                          <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: '#64748b' }}>{apt.endTime || '?'}</span>
+                                          {apt.duration && <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: '#f1f5f9', borderRadius: 4, color: '#64748b', fontWeight: 500 }}>{apt.duration}m</span>}
+                                        </div>
+                                        <span className={`status-pill status-${normalizedStatus}`}>{apt.status}</span>
+                                      </div>
+
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.875rem' }}>
+                                        {/* First Column */}
+                                        <div>
+                                          <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: 2 }}>Patient</div>
+                                          <div style={{ fontWeight: 500, color: '#1e293b' }}>{apt.patientName}</div>
+                                          {apt.patient?.phone && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{apt.patient.phone}</div>}
+                                        </div>
+
+                                        {/* Second Column */}
+                                        <div>
+                                          <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: 2 }}>Treatment</div>
+                                          <div style={{ fontWeight: 500, color: '#1e293b' }}>{apt.treatmentName}</div>
+                                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>with {apt.dentistName}</div>
+                                        </div>
+                                      </div>
+
+                                      {/* Extra details row */}
+                                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #f1f5f9', display: 'flex', gap: 16, fontSize: '0.8rem' }}>
+                                        {apt.room && (
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                            <div style={{ width: 8, height: 8, borderRadius: 2, background: apt.room.color || '#cbd5e1' }}></div>
+                                            <span style={{ color: '#475569' }}>Room: {apt.room.name}</span>
+                                          </div>
+                                        )}
+                                        {apt.notes && (
+                                          <div style={{ color: '#64748b', fontStyle: 'italic', maxWidth: '70%' }}>
+                                            Note: "{apt.notes}"
+                                          </div>
+                                        )}
+                                      </div>
+
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
             ) : (
               <>
                 <div className="admin-entity-list">
