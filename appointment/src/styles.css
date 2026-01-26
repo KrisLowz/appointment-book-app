@@ -5985,6 +5985,8 @@ tbody tr:hover {
   gap: var(--space-sm);
   border-right: 1px solid var(--border-light);
   min-width: 150px;
+  height: 70px;
+  /* Fixed height for alignment with Time Column */
 }
 
 .dentist-header:last-child {
@@ -7045,4 +7047,328 @@ tbody tr:hover {
 
 .admin-select:hover {
   border-color: var(--text-muted);
+}
+
+/* Admin Appointment View Styles */
+.admin-filter-container {
+  margin-bottom: 20px;
+  display: flex;
+  gap: 12px;
+  background: var(--bg-secondary);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  align-items: center;
+}
+
+.admin-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+}
+
+.admin-month-wrapper {
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: var(--bg-card);
+}
+
+.admin-month-header {
+  padding: 14px 20px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  transition: background-color var(--transition-fast);
+}
+
+.admin-month-header:hover {
+  background: var(--bg-hover);
+}
+
+.admin-count-badge {
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+.admin-collapse-icon {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.admin-appointment-card {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-light);
+  transition: background-color var(--transition-fast);
+}
+
+.admin-appointment-card:last-child {
+  border-bottom: none;
+}
+
+.admin-appointment-card:hover {
+  background-color: var(--bg-hover);
+}
+
+.admin-card-header-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.admin-time-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.admin-time-start,
+.admin-time-end {
+  font-family: monospace;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.admin-time-separator {
+  color: var(--text-muted);
+}
+
+.admin-duration-badge {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  background: var(--bg-secondary);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.admin-card-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 0.875rem;
+}
+
+.admin-detail-label {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-bottom: 2px;
+}
+
+.admin-detail-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.admin-detail-sub {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.admin-card-footer {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-light);
+  display: flex;
+  gap: 16px;
+  font-size: 0.8rem;
+}
+
+.admin-room-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-room-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.admin-room-name {
+  color: var(--text-secondary);
+}
+
+.admin-notes {
+  color: var(--text-secondary);
+  font-style: italic;
+  max-width: 70%;
+}
+
+/* Dark Mode Overrides for Admin Modules */
+:root[data-theme="dark"] .admin-filter-container,
+:root[data-theme="dark"] .admin-month-header,
+:root[data-theme="dark"] .admin-duration-badge {
+  background: #1e293b;
+  /* Slate 800 */
+  border-color: #334155;
+}
+
+:root[data-theme="dark"] .admin-month-wrapper {
+  background: #0f172a;
+  /* Slate 900 */
+  border-color: #334155;
+}
+
+:root[data-theme="dark"] .admin-appointment-card {
+  border-bottom-color: #334155;
+}
+
+:root[data-theme="dark"] .admin-card-footer {
+  border-top-color: #334155;
+}
+
+:root[data-theme="dark"] .admin-search-input {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .admin-select {
+  background-color: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .admin-detail-value,
+:root[data-theme="dark"] .admin-time-group,
+:root[data-theme="dark"] .admin-time-start,
+:root[data-theme="dark"] .admin-time-end,
+:root[data-theme="dark"] .admin-month-header {
+  color: #f1f5f9;
+}
+
+:root[data-theme="dark"] .admin-detail-label,
+:root[data-theme="dark"] .admin-detail-sub,
+:root[data-theme="dark"] .admin-time-separator,
+:root[data-theme="dark"] .admin-notes,
+:root[data-theme="dark"] .admin-collapse-icon,
+:root[data-theme="dark"] .admin-count-badge,
+:root[data-theme="dark"] .admin-room-name {
+  color: #94a3b8;
+}
+
+/* Modern Status Bubbles */
+.status-bubble {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.status-bubble svg {
+  display: block;
+}
+
+/* Colors for bubbles */
+.status-bubble.confirmed {
+  color: var(--success);
+}
+
+.status-bubble.completed {
+  color: var(--primary);
+  background: var(--primary);
+  color: white;
+}
+
+.status-bubble.small {
+  width: 16px;
+  height: 16px;
+  padding: 2px;
+}
+
+.status-bubble.cancelled {
+  color: var(--danger);
+  background: white;
+  /* Ensure contrast for cancel icon */
+  border: 1px solid var(--danger-light);
+}
+
+.status-bubble.noshow {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+
+
+.status-bubble.scheduled {
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+/* Premium Appointment Cards */
+.day-appointment-card,
+.week-appointment {
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  overflow: hidden;
+  padding: 2px 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.day-appointment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 2px;
+}
+
+.day-appointment-card:hover,
+.week-appointment:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.05);
+  z-index: 20;
+}
+
+.week-appointment-header {
+  margin-bottom: 2px;
+}
+
+/* Spinner Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.icon-spin {
+  animation: spin 2s linear infinite;
+  transform-origin: center;
+}
+
+.status-bubble.pending {
+  color: var(--warning);
+  border: 1px solid var(--warning-light);
 }

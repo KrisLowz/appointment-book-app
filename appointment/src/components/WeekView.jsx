@@ -103,7 +103,7 @@ export default function WeekView({
         </div>
         {weekDays.map((d) => {
           const iso = toISODate(d);
-          const dayAppointments = appointments.filter((apt) => apt.date === iso && apt.status !== 'cancelled');
+          const dayAppointments = appointments.filter((apt) => apt.date === iso);
           const isRest = restDays.indexOf(d.getDay()) !== -1;
           const holiday = holidayMap[iso];
           const isPastDay = iso < todayIso;
@@ -113,6 +113,57 @@ export default function WeekView({
             : 0;
           const restClass = holiday ? 'holiday-day' : isRest ? 'rest-day' : '';
           const previewActive = dragPreview && dragPreview.date === iso;
+
+          const statusClass = (status) => {
+            if (status === 'no-show') return 'noshow';
+            if (!status) return 'scheduled';
+            if (['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) return status;
+            return 'scheduled';
+          };
+          const statusIcon = (status) => {
+            const cls = statusClass(status);
+            // Smaller icons for Week View
+            const icons = {
+              scheduled: (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="8" cy="8" r="6" />
+                  <polyline points="8 4 8 8 10 9" />
+                </svg>
+              ),
+              pending: (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-spin">
+                  <path d="M8 2a6 6 0 1 1-4.24 1.76" />
+                </svg>
+              ),
+              confirmed: (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="2.5 8.5 6 12 13.5 3.5" />
+                </svg>
+              ),
+              completed: (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                  <circle cx="8" cy="8" r="6" />
+                </svg>
+              ),
+              cancelled: (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="4" x2="12" y2="12" />
+                  <line x1="12" y1="4" x2="4" y2="12" />
+                </svg>
+              ),
+              noshow: (
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="8" cy="8" r="6" />
+                  <line x1="12" y1="8" x2="4" y2="8" />
+                </svg>
+              )
+            };
+            return (
+              <span className={`status-bubble ${cls} small`} style={{ width: 16, height: 16 }}>
+                {icons[cls] || icons.scheduled}
+              </span>
+            );
+          };
           const handleDrop = (e) => {
             e.preventDefault();
             const dragged = dragRef.current;
@@ -228,7 +279,10 @@ export default function WeekView({
                       if (onAppointmentSelect) onAppointmentSelect(apt);
                     }}
                   >
-                    <div className="week-appointment-time">{formatTime(apt.startTime)}</div>
+                    <div className="week-appointment-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                      <div className="week-appointment-time">{formatTime(apt.startTime)}</div>
+                      {statusIcon(apt.status)}
+                    </div>
                     <div className="week-appointment-title">
                       {patientName(apt.patientId)}
                       {treatmentName(apt.treatmentId || apt.treatmentType)

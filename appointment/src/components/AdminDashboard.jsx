@@ -960,18 +960,9 @@ export default function AdminDashboard({ onLogout }) {
             {detailError && <div className="form-error" style={{ marginBottom: 12 }}>{detailError}</div>}
             {detailModal.type === 'appointments' ? (
               <div className="admin-appointment-view">
-                <div className="admin-filters" style={{
-                  marginBottom: 20,
-                  display: 'flex',
-                  gap: 12,
-                  background: '#f8fafc',
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid #e2e8f0',
-                  alignItems: 'center'
-                }}>
+                <div className="admin-filter-container">
                   <div style={{ position: 'relative', flex: 1 }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="admin-search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     <input
                       type="text"
                       placeholder="Search patient, dentist or treatment..."
@@ -1053,57 +1044,56 @@ export default function AdminDashboard({ onLogout }) {
                         const isExpanded = expandedAppointmentMonths[month];
 
                         return (
-                          <div key={month} className="admin-month-group" style={{ marginBottom: 12, border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden', backgroundColor: '#fff' }}>
+                          <div key={month} className="admin-month-wrapper">
                             <div
                               className="admin-month-header"
-                              style={{ padding: '14px 20px', background: '#f8fafc', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: '0.95rem', color: '#334155' }}
                               onClick={() => setExpandedAppointmentMonths(prev => ({ ...prev, [month]: !prev[month] }))}
                             >
-                              <span>{monthLabel} <span style={{ color: '#64748b', fontWeight: 400, marginLeft: 6 }}>({grouped[month].length})</span></span>
-                              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{isExpanded ? '▼' : '▶'}</span>
+                              <span>{monthLabel} <span className="admin-count-badge">({grouped[month].length})</span></span>
+                              <span className="admin-collapse-icon">{isExpanded ? '▼' : '▶'}</span>
                             </div>
                             {isExpanded && (
                               <div className="admin-month-body">
                                 {grouped[month].map(apt => {
                                   const normalizedStatus = (apt.status || 'confirmed').toLowerCase().replace(' ', '-');
                                   return (
-                                    <div key={apt.id} className="admin-appointment-card" style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>
-                                          <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: '#334155' }}>{apt.startTime}</span>
-                                          <span style={{ color: '#cbd5e1' }}>—</span>
-                                          <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: '#64748b' }}>{apt.endTime || '?'}</span>
-                                          {apt.duration && <span style={{ fontSize: '0.75rem', padding: '2px 6px', background: '#f1f5f9', borderRadius: 4, color: '#64748b', fontWeight: 500 }}>{apt.duration}m</span>}
+                                    <div key={apt.id} className="admin-appointment-card">
+                                      <div className="admin-card-header-row">
+                                        <div className="admin-time-group">
+                                          <span className="admin-time-start">{apt.startTime}</span>
+                                          <span className="admin-time-separator">—</span>
+                                          <span className="admin-time-end">{apt.endTime || '?'}</span>
+                                          {apt.duration && <span className="admin-duration-badge">{apt.duration}m</span>}
                                         </div>
                                         <span className={`status-pill status-${normalizedStatus}`}>{apt.status}</span>
                                       </div>
 
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: '0.875rem' }}>
+                                      <div className="admin-card-details-grid">
                                         {/* First Column */}
                                         <div>
-                                          <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: 2 }}>Patient</div>
-                                          <div style={{ fontWeight: 500, color: '#1e293b' }}>{apt.patientName}</div>
-                                          {apt.patient?.phone && <div style={{ fontSize: '0.8rem', color: '#64748b' }}>{apt.patient.phone}</div>}
+                                          <div className="admin-detail-label">Patient</div>
+                                          <div className="admin-detail-value">{apt.patientName}</div>
+                                          {apt.patient?.phone && <div className="admin-detail-sub">{apt.patient.phone}</div>}
                                         </div>
 
                                         {/* Second Column */}
                                         <div>
-                                          <div style={{ color: '#64748b', fontSize: '0.75rem', marginBottom: 2 }}>Treatment</div>
-                                          <div style={{ fontWeight: 500, color: '#1e293b' }}>{apt.treatmentName}</div>
-                                          <div style={{ fontSize: '0.8rem', color: '#64748b' }}>with {apt.dentistName}</div>
+                                          <div className="admin-detail-label">Treatment</div>
+                                          <div className="admin-detail-value">{apt.treatmentName}</div>
+                                          <div className="admin-detail-sub">with {apt.dentistName}</div>
                                         </div>
                                       </div>
 
                                       {/* Extra details row */}
-                                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px dashed #f1f5f9', display: 'flex', gap: 16, fontSize: '0.8rem' }}>
+                                      <div className="admin-card-footer">
                                         {apt.room && (
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                            <div style={{ width: 8, height: 8, borderRadius: 2, background: apt.room.color || '#cbd5e1' }}></div>
-                                            <span style={{ color: '#475569' }}>Room: {apt.room.name}</span>
+                                          <div className="admin-room-info">
+                                            <div className="admin-room-dot" style={{ background: apt.room.color || '#cbd5e1' }}></div>
+                                            <span className="admin-room-name">Room: {apt.room.name}</span>
                                           </div>
                                         )}
                                         {apt.notes && (
-                                          <div style={{ color: '#64748b', fontStyle: 'italic', maxWidth: '70%' }}>
+                                          <div className="admin-notes">
                                             Note: "{apt.notes}"
                                           </div>
                                         )}
