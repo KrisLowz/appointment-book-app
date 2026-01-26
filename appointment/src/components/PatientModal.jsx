@@ -1,7 +1,9 @@
 ﻿import { useState } from 'react';
 import Modal from './Modal';
+import { useToast } from '../context/ToastProvider';
 
 export default function PatientModal({ patient, dentists, onSave, onDelete, onClose }) {
+  const { addToast } = useToast();
   const [form, setForm] = useState(() => ({
     name: patient ? patient.name || '' : '',
     idNumber: patient ? patient.idNumber || '' : '',
@@ -27,11 +29,11 @@ export default function PatientModal({ patient, dentists, onSave, onDelete, onCl
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.name.trim()) {
-      alert('Please enter patient name');
+      addToast('Please enter patient name', 'error');
       return;
     }
     if (!form.phone.trim()) {
-      alert('Please enter phone number');
+      addToast('Please enter phone number', 'error');
       return;
     }
     onSave(form);

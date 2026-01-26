@@ -142,7 +142,7 @@ export default function RequestsView({
     <div className="requests-page">
       <div className="requests-header">
         <div>
-          <h2>Appointment Requests</h2>
+          <h2 className="request-title">Appointment Requests</h2>
           <p>Review patient submissions and approve or decline.</p>
         </div>
         <div className="requests-filters" role="tablist" aria-label="Request status filters">

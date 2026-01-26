@@ -2,7 +2,7 @@
 import WeekView from './WeekView';
 import DayView from './DayView';
 import { buildMonthGrid } from '../utils/calendar';
-import { formatMonthTitle, formatDayLong, sameDate, todayISO, toISODate } from '../utils/date';
+import { formatMonthTitle, formatDayLong, sameDate, todayISO, toISODate, addDays, addMonths } from '../utils/date';
 import { formatTime, minutesToTime } from '../utils/time';
 
 export default function CalendarView({
@@ -31,15 +31,13 @@ export default function CalendarView({
   }, [appointments]);
 
   const changeByView = (delta) => {
-    const next = new Date(currentDate);
     if (calendarView === 'day') {
-      next.setDate(currentDate.getDate() + delta);
+      setCurrentDate((prev) => addDays(prev, delta));
     } else if (calendarView === 'week') {
-      next.setDate(currentDate.getDate() + delta * 7);
+      setCurrentDate((prev) => addDays(prev, delta * 7));
     } else {
-      next.setMonth(currentDate.getMonth() + delta);
+      setCurrentDate((prev) => addMonths(prev, delta));
     }
-    setCurrentDate(next);
   };
 
   const patientName = (id) => {
@@ -156,7 +154,11 @@ export default function CalendarView({
                       <span className={`day-appointment-dot status-${statusClass(apt.status)}`} />
                       <span className="day-appointment-time">{formatTime(apt.startTime)}</span>
                       <span className="day-appointment-title">
-                        {patientName(apt.patientId)}
+                        {(() => {
+                          const name = patientName(apt.patientId);
+                          // Truncate name to ~10-12 chars for cleaner month view
+                          return name.length > 12 ? name.substring(0, 12) + '...' : name;
+                        })()}
                       </span>
                     </div>
                   ))}

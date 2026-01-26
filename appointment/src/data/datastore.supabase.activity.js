@@ -9,10 +9,11 @@ const mapActivity = (row) => ({
 
 export async function getActivityLog(clinicId) {
   const { data, error } = await supabase
-    .from("activity_log")
+    .from("apt_activity_log")
     .select("*")
     .eq("clinic_id", clinicId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
   if (error) throw error;
   return (data || []).map(mapActivity);
 }
@@ -24,7 +25,7 @@ export async function addActivityLog(clinicId, entry) {
     description: entry.description,
   };
   const { data, error } = await supabase
-    .from("activity_log")
+    .from("apt_activity_log")
     .insert(payload)
     .select("*")
     .single();
@@ -34,7 +35,7 @@ export async function addActivityLog(clinicId, entry) {
 
 export async function getAdminActivity() {
   const { data, error } = await supabase
-    .from("activity_log")
+    .from("apt_activity_log")
     .select("*")
     .is("clinic_id", null)
     .order("created_at", { ascending: false });
@@ -49,7 +50,7 @@ export async function addAdminActivity(entry) {
     description: entry.description,
   };
   const { data, error } = await supabase
-    .from("activity_log")
+    .from("apt_activity_log")
     .insert(payload)
     .select("*")
     .single();
