@@ -4,6 +4,7 @@ import { addMinutes, formatTime, minutesToTime } from '../utils/time';
 import { todayISO } from '../utils/date';
 import { getInitials } from '../utils/people';
 import { getColorBg } from '../utils/colors';
+import { useToast } from '../context/ToastProvider';
 
 export default function AppointmentForm({
   patients,
@@ -19,6 +20,7 @@ export default function AppointmentForm({
   searchPatients,
   credits,
 }) {
+  const { addToast } = useToast();
   const defaultDuration = settings && settings.slotDuration ? settings.slotDuration : 30;
   const [form, setForm] = useState({
     patientId: patients[0] ? patients[0].id : '',
@@ -155,12 +157,12 @@ export default function AppointmentForm({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!isEditing && credits < 1) {
-      alert("Insufficient credits to create a new appointment.");
+      addToast("Insufficient credits to create a new appointment.", 'error');
       return;
     }
     if (!form.patientId || !form.date || !form.startTime) return;
     if (!isEditing && (form.date < today || (form.date === today && form.startTime <= currentTime))) {
-      alert('Please choose a future date and time.');
+      addToast('Please choose a future date and time.', 'warning');
       return;
     }
 
@@ -169,7 +171,7 @@ export default function AppointmentForm({
       const { start, end } = settings.workingHours;
       if (start && end) {
         if (form.startTime < start || endTime > end) {
-          alert(`Appointment must be within working hours (${formatTime(start)} - ${formatTime(end)}).`);
+          addToast(`Appointment must be within working hours (${formatTime(start)} - ${formatTime(end)}).`, 'warning');
           return;
         }
       }

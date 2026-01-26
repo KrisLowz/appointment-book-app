@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import useDataStore from './hooks/useDataStore';
 import { useAuth } from './context/AuthProvider';
+import { ToastProvider, useToast } from './context/ToastProvider';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import CalendarView from './components/CalendarView';
@@ -29,6 +30,15 @@ const getBookingSlugFromPath = () => {
 };
 
 export default function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
+  const { addToast } = useToast();
   const {
     session,
     user,
@@ -179,7 +189,7 @@ export default function App() {
           setAppointmentDefaults(null);
         })
         .catch((err) => {
-          alert(err.message || "Failed to create appointment");
+          addToast(err.message || "Failed to create appointment", 'error');
         });
     }
   };
@@ -207,7 +217,7 @@ export default function App() {
     if (!editingPatient) return;
     const hasAppointments = appointments.some((a) => String(a.patientId) === String(editingPatient.id));
     if (hasAppointments) {
-      alert('Cannot delete: patient has appointments');
+      addToast('Cannot delete: patient has appointments', 'warning');
       return;
     }
     setConfirmDialog({
@@ -471,6 +481,7 @@ export default function App() {
         />
       )}
 
+
       {showCreditModal && (
         <CreditModal
           credits={credits}
@@ -482,10 +493,10 @@ export default function App() {
             try {
               if (code === 'DEMO10') {
                 await addCredits(10, 'Voucher Redemption: DEMO10');
-                alert('Start up credits added!');
+                addToast('Start up credits added!', 'success');
               } else {
                 await new Promise(r => setTimeout(r, 500)); // Fake delay for error too
-                alert('Invalid code. Try DEMO10.');
+                addToast('Invalid code. Try DEMO10.', 'error');
               }
             } finally {
               setIsRedeeming(false);

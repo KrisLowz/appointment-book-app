@@ -4,6 +4,7 @@ import { getColorBg } from '../utils/colors';
 import { getInitials } from '../utils/people';
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
+import { useToast } from '../context/ToastProvider';
 
 export default function SettingsView({
   settings,
@@ -28,6 +29,7 @@ export default function SettingsView({
   theme,
   setTheme,
 }) {
+  const { addToast } = useToast();
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const colorOptions = ['#4A90A4', '#7CB798', '#E5C07B', '#9B8AC4', '#E07B7B', '#A8D8EA'];
   const specialtyOptions = ['General', 'Endodontics', 'Pediatric', 'Orthodontics', 'Periodontics', 'Prosthodontics'];
@@ -80,7 +82,7 @@ export default function SettingsView({
       slotDuration: Number(form.slotDuration) || 30,
       restDays: form.restDays,
     });
-    alert('Settings saved');
+    addToast('Settings saved', 'success');
   };
 
   const openRoomModal = (room) => {
@@ -162,7 +164,7 @@ export default function SettingsView({
 
   const handleRoomSubmit = () => {
     if (!roomForm.name.trim()) {
-      alert('Enter room name');
+      addToast('Enter room name', 'error');
       return;
     }
     if (roomForm.id) {
@@ -175,7 +177,7 @@ export default function SettingsView({
 
   const handleTreatmentSubmit = () => {
     if (!treatmentForm.name.trim()) {
-      alert('Enter treatment name');
+      addToast('Enter treatment name', 'error');
       return;
     }
     const payload = {
@@ -196,7 +198,7 @@ export default function SettingsView({
 
   const handleStaffSubmit = () => {
     if (!staffForm.name.trim()) {
-      alert('Enter staff name');
+      addToast('Enter staff name', 'error');
       return;
     }
     const payload = {
@@ -220,7 +222,7 @@ export default function SettingsView({
 
   const handleHolidaySubmit = () => {
     if (!holidayForm.name || !holidayForm.startDate) {
-      alert('Enter holiday name and start date');
+      addToast('Enter holiday name and start date', 'error');
       return;
     }
     if (holidayForm.id) {

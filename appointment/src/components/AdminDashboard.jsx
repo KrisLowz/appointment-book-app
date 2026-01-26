@@ -7,15 +7,18 @@ import { updateTreatment as updateTreatmentRecord } from '../data/datastore.supa
 import Modal from './Modal';
 import ConfirmDialog from './ConfirmDialog';
 import { todayISO } from '../utils/date';
+import { useToast } from '../context/ToastProvider';
 
 const planOptions = ['Starter', 'Growth', 'Pro', 'Enterprise'];
 const statusOptions = ['active', 'trial', 'paused'];
 const ADMIN_TAB_KEY = 'appointmentApp_adminTab';
 
 export default function AdminDashboard({ onLogout }) {
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem(ADMIN_TAB_KEY) || 'overview');
   const [clinics, setClinics] = useState([]);
   const [users, setUsers] = useState([]);
+  // ... (rest of simple state)
   const [adminActivity, setAdminActivity] = useState([]);
   const [clinicDetails, setClinicDetails] = useState({});
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,7 @@ export default function AdminDashboard({ onLogout }) {
   const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
 
   const refresh = async () => {
+    // ... refresh logic ...
     setLoading(true);
     setError('');
     try {
@@ -117,6 +121,7 @@ export default function AdminDashboard({ onLogout }) {
     return base;
   }, [clinicSummaries, clinics.length, users.length]);
 
+  // ... (appointmentTrend chart logic skipped for brevity if unchanged logic is compatible with replacement) ...
   const appointmentTrend = useMemo(() => {
     const months = [];
     const now = new Date();
@@ -139,6 +144,7 @@ export default function AdminDashboard({ onLogout }) {
     });
     return months;
   }, [clinicDetails]);
+
 
   const openClinicModal = (clinic) => {
     if (clinic) {
@@ -192,57 +198,31 @@ export default function AdminDashboard({ onLogout }) {
   const getDetailItems = () => {
     const detail = clinicDetails[detailModal.clinicId] || {};
     switch (detailModal.type) {
-      case 'patients':
-        return detail.patients || [];
-      case 'staff':
-        return detail.staff || [];
-      case 'rooms':
-        return detail.rooms || [];
-      case 'treatments':
-        return detail.treatments || [];
-      default:
-        return [];
+      case 'patients': return detail.patients || [];
+      case 'staff': return detail.staff || [];
+      case 'rooms': return detail.rooms || [];
+      case 'treatments': return detail.treatments || [];
+      default: return [];
     }
   };
 
   const startEdit = (item) => {
+    // ... logic ...
     if (!item) return;
     switch (detailModal.type) {
       case 'patients':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          phone: item.phone || '',
-          email: item.email || '',
-          address: item.address || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', phone: item.phone || '', email: item.email || '', address: item.address || '' });
         break;
       case 'staff':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          role: item.role || 'dentist',
-          phone: item.phone || '',
-          specialty: item.specialty || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', role: item.role || 'dentist', phone: item.phone || '', specialty: item.specialty || '' });
         break;
       case 'rooms':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          color: item.color || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', color: item.color || '' });
         break;
       case 'treatments':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          duration: item.duration || 0,
-          color: item.color || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', duration: item.duration || 0, color: item.color || '' });
         break;
-      default:
-        setDetailForm({});
+      default: setDetailForm({});
     }
   };
 
@@ -252,26 +232,14 @@ export default function AdminDashboard({ onLogout }) {
     setDetailError('');
     try {
       switch (detailModal.type) {
-        case 'patients':
-          await updatePatientRecord(detailForm.id, detailForm);
-          break;
-        case 'staff':
-          await updateStaffRecord(detailForm.id, detailForm);
-          break;
-        case 'rooms':
-          await updateRoomRecord(detailForm.id, detailForm);
-          break;
-        case 'treatments':
-          await updateTreatmentRecord(detailForm.id, {
-            ...detailForm,
-            duration: Number(detailForm.duration) || 0,
-          });
-          break;
-        default:
-          break;
+        case 'patients': await updatePatientRecord(detailForm.id, detailForm); break;
+        case 'staff': await updateStaffRecord(detailForm.id, detailForm); break;
+        case 'rooms': await updateRoomRecord(detailForm.id, detailForm); break;
+        case 'treatments': await updateTreatmentRecord(detailForm.id, { ...detailForm, duration: Number(detailForm.duration) || 0 }); break;
       }
       await refresh();
       setDetailForm({});
+      addToast('Record updated', 'success');
     } catch (err) {
       setDetailError(err.message || 'Failed to save changes.');
       console.error(err);
@@ -282,34 +250,36 @@ export default function AdminDashboard({ onLogout }) {
 
   const handleClinicSubmit = async () => {
     if (!clinicForm.name.trim()) {
-      alert('Enter clinic name');
+      addToast('Enter clinic name', 'error');
       return;
     }
     try {
       if (clinicForm.id) {
         await DataStore.updateClinic(clinicForm.id, clinicForm);
+        addToast('Clinic updated', 'success');
       } else {
         await DataStore.addClinic(clinicForm);
+        addToast('Clinic created', 'success');
       }
       await refresh();
       closeModal();
     } catch (err) {
-      alert('Failed to save clinic');
+      addToast('Failed to save clinic', 'error');
       console.error(err);
     }
   };
 
   const handleUserSubmit = async () => {
     if (!userForm.username.trim()) {
-      alert('Enter email');
+      addToast('Enter email', 'error');
       return;
     }
     if (!DataStore.canCreateUsers && !userForm.id) {
-      alert('Create users in Supabase Auth, then assign role/clinic here.');
+      addToast('Create users in Supabase Auth, then assign role/clinic here.', 'info');
       return;
     }
     if (DataStore.canCreateUsers && !userForm.password.trim() && !userForm.id) {
-      alert('Enter password');
+      addToast('Enter password', 'error');
       return;
     }
 
@@ -318,11 +288,9 @@ export default function AdminDashboard({ onLogout }) {
       if (userForm.id) {
         await DataStore.updateUser(userForm.id, userForm);
         setUserSuccessMessage('User updated successfully.');
+        addToast('User updated successfully.', 'success');
       } else {
         const created = await DataStore.addUser(userForm);
-
-        // Critical fix: created user starts with default metadata, we must update it
-        // with the specific selected clinic and role immediately
         if (created?.id) {
           await DataStore.updateUser(created.id, {
             clinicId: userForm.clinicId,
@@ -330,7 +298,7 @@ export default function AdminDashboard({ onLogout }) {
             name: userForm.name,
             status: userForm.status
           });
-
+          // ... update state ...
           setUsers((prev) => [
             {
               id: created.id,
@@ -345,21 +313,16 @@ export default function AdminDashboard({ onLogout }) {
           ]);
         }
         setUserSuccessMessage('User created successfully.');
+        addToast('User created successfully.', 'success');
       }
       await refresh();
-
-      // Don't close immediately if success, to show the message inside modal? 
-      // User asked for success message. If we close, we need to show it elsewhere.
-      // Let's keep modal open if it was a create action to show the success message, or close and show toast in list?
-      // "i need custom design not default browser message."
-      // Let's close and rely on the persisted userSuccessMessage showing in the list view (it's already there in JSX)
       setTimeout(() => {
         closeModal();
         setUserLoading(false);
       }, 1500);
 
     } catch (err) {
-      alert(err.message || 'Failed to save user');
+      addToast(err.message || 'Failed to save user', 'error');
       console.error(err);
       setUserLoading(false);
     }

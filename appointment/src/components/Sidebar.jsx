@@ -1,4 +1,7 @@
+import { useToast } from '../context/ToastProvider';
+
 export default function Sidebar({ view, onChange, theme, setTheme, onLogout, bookingLink, isOpen, onClose }) {
+  const { addToast } = useToast();
   const items = [
     { id: 'calendar', label: 'Calendar', icon: 'calendar' },
     { id: 'today', label: 'Today', icon: 'clock' },
