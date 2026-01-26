@@ -69,7 +69,7 @@ export async function updateStaff(id, updates) {
 }
 
 export async function deleteStaff(id) {
-  const { error } = await supabase.from("staff").delete().eq("id", id);
+  const { error } = await supabase.from("apt_staff").delete().eq("id", id);
   if (error) throw error;
   return true;
 }

@@ -57,7 +57,7 @@ export async function updateHoliday(id, updates) {
 }
 
 export async function deleteHoliday(id) {
-  const { error } = await supabase.from("holidays").delete().eq("id", id);
+  const { error } = await supabase.from("apt_holidays").delete().eq("id", id);
   if (error) throw error;
   return true;
 }

@@ -47,7 +47,7 @@ export async function updateRoom(id, updates) {
 }
 
 export async function deleteRoom(id) {
-  const { error } = await supabase.from("rooms").delete().eq("id", id);
+  const { error } = await supabase.from("apt_rooms").delete().eq("id", id);
   if (error) throw error;
   return true;
 }

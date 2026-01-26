@@ -111,7 +111,7 @@ export async function updatePatient(patientUuid, updates) {
 }
 
 export async function deletePatient(patientUuid) {
-  const { error } = await supabase.from("patients").delete().eq("id", patientUuid);
+  const { error } = await supabase.from("apt_patients").delete().eq("id", patientUuid);
   if (error) throw error;
   return true;
 }

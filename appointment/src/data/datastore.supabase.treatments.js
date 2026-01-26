@@ -53,7 +53,7 @@ export async function updateTreatment(id, updates) {
 }
 
 export async function deleteTreatment(id) {
-  const { error } = await supabase.from("treatments").delete().eq("id", id);
+  const { error } = await supabase.from("apt_treatments").delete().eq("id", id);
   if (error) throw error;
   return true;
 }
