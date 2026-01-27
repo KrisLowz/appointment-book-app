@@ -178,18 +178,22 @@ function AppContent() {
 
   const handleSaveAppointment = (data) => {
     if (data.id) {
-      updateAppointment(data.id, data);
-      setShowAppointmentModal(false);
-      setAppointmentDefaults(null);
+      return updateAppointment(data.id, data).then(() => {
+        setShowAppointmentModal(false);
+        setAppointmentDefaults(null);
+      });
     } else {
       // Logic is now inside useDataStore.addAppointment
-      addAppointment(data)
+      return addAppointment(data)
         .then(() => {
           setShowAppointmentModal(false);
           setAppointmentDefaults(null);
         })
         .catch((err) => {
+          // If we want to show the specific error (like "Insufficient credits"), re-throw or handle here
           addToast(err.message || "Failed to create appointment", 'error');
+          // Important: re-throw so form knows it failed!
+          throw err;
         });
     }
   };
