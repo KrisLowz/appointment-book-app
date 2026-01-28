@@ -3,6 +3,7 @@ import { supabase } from "../lib/supabaseClient";
 const mapClinic = (row) => ({
   id: row.id,
   name: row.name,
+  slug: row.slug || "",
   city: row.city || "",
   plan: row.plan || "",
   status: row.status || "",
@@ -21,6 +22,7 @@ export async function getClinics() {
 export async function addClinic(clinic) {
   const payload = {
     name: clinic.name,
+    slug: clinic.slug || clinic.name.toLowerCase().replace(/\s+/g, '-'),
     city: clinic.city || null,
     plan: clinic.plan || null,
     status: clinic.status || null,
@@ -37,6 +39,7 @@ export async function addClinic(clinic) {
 export async function updateClinic(id, updates) {
   const payload = {
     ...(updates.name !== undefined ? { name: updates.name } : {}),
+    ...(updates.slug !== undefined ? { slug: updates.slug } : {}),
     ...(updates.city !== undefined ? { city: updates.city } : {}),
     ...(updates.plan !== undefined ? { plan: updates.plan } : {}),
     ...(updates.status !== undefined ? { status: updates.status } : {}),

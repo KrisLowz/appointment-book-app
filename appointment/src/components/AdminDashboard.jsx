@@ -27,8 +27,10 @@ export default function AdminDashboard({ onLogout }) {
   const [expandedAppointmentMonths, setExpandedAppointmentMonths] = useState({});
   const [appointmentFilter, setAppointmentFilter] = useState({ status: 'all', query: '' });
   const [modalState, setModalState] = useState({ type: null, mode: 'new' });
-  const [clinicForm, setClinicForm] = useState({ id: '', name: '', city: '', plan: 'Starter', status: 'active' });
+  const [clinicForm, setClinicForm] = useState({ id: '', name: '', slug: '', city: '', plan: 'Starter', status: 'active' });
   const [userForm, setUserForm] = useState({ id: '', username: '', password: '', role: 'dentist', clinicId: '', name: '', status: 'active' });
+  const [userFilter, setUserFilter] = useState({ query: '', sortBy: 'newest' });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userLoading, setUserLoading] = useState(false);
   const [detailModal, setDetailModal] = useState({ open: false, clinicId: '', type: '' });
   const [detailForm, setDetailForm] = useState({});
@@ -151,6 +153,7 @@ export default function AdminDashboard({ onLogout }) {
       setClinicForm({
         id: clinic.id,
         name: clinic.name,
+        slug: clinic.slug || '',
         city: clinic.city || '',
         plan: clinic.plan || 'Starter',
         status: clinic.status || 'active'
@@ -158,7 +161,7 @@ export default function AdminDashboard({ onLogout }) {
       setModalState({ type: 'clinic', mode: 'edit' });
       return;
     }
-    setClinicForm({ id: '', name: '', city: '', plan: 'Starter', status: 'active' });
+    setClinicForm({ id: '', name: '', slug: '', city: '', plan: 'Starter', status: 'active' });
     setModalState({ type: 'clinic', mode: 'new' });
   };
 
@@ -253,7 +256,18 @@ export default function AdminDashboard({ onLogout }) {
       addToast('Enter clinic name', 'error');
       return;
     }
+
+    // Validate Slug Uniqueness
+    const slug = clinicForm.slug.trim().toLowerCase() || clinicForm.name.toLowerCase().replace(/\s+/g, '-');
+    const duplicate = clinics.find(c => c.slug === slug && c.id !== clinicForm.id);
+
+    if (duplicate) {
+      addToast(`Slug "${slug}" is already taken by clinic "${duplicate.name}"`, 'error');
+      return;
+    }
+
     try {
+      const payload = { ...clinicForm, slug }; // Ensure refined slug is sent
       if (clinicForm.id) {
         await DataStore.updateClinic(clinicForm.id, clinicForm);
         addToast('Clinic updated', 'success');
@@ -636,76 +650,237 @@ export default function AdminDashboard({ onLogout }) {
                     </div>
                     {expandedClinicId === clinic.id && (
                       <div className="admin-clinic-details">
-                        <div className="admin-detail-section">
-                          <div className="admin-detail-title">Clinic Overview</div>
-                          <div className="admin-grid">
-                            <button
-                              type="button"
-                              className="admin-card admin-card-clickable"
-                              onClick={() => openDetailModal(clinic.id, 'patients')}
-                            >
-                              <div className="admin-card-label">Patients</div>
-                              <div className="admin-card-value">{clinic.stats.patients}</div>
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-card admin-card-clickable"
-                              onClick={() => openDetailModal(clinic.id, 'appointments')}
-                            >
-                              <div className="admin-card-label">Appointments</div>
-                              <div className="admin-card-value">{clinic.stats.appointments}</div>
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-card admin-card-clickable"
-                              onClick={() => openDetailModal(clinic.id, 'staff')}
-                            >
-                              <div className="admin-card-label">Staff</div>
-                              <div className="admin-card-value">{clinic.stats.staff}</div>
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-card admin-card-clickable"
-                              onClick={() => openDetailModal(clinic.id, 'rooms')}
-                            >
-                              <div className="admin-card-label">Rooms</div>
-                              <div className="admin-card-value">{clinic.stats.rooms}</div>
-                            </button>
-                            <button
-                              type="button"
-                              className="admin-card admin-card-clickable"
-                              onClick={() => openDetailModal(clinic.id, 'treatments')}
-                            >
-                              <div className="admin-card-label">Treatments</div>
-                              <div className="admin-card-value">{clinic.stats.treatments}</div>
-                            </button>
-                          </div>
-                        </div>
+                        {/* Calculate Analytics Data on the fly */}
+                        {(() => {
+                          const detail = clinicDetails[clinic.id] || {};
+                          const appts = detail.appointments || [];
+                          const patients = detail.patients || [];
+                          const staff = detail.staff || [];
+                          const treatments = detail.treatments || [];
+                          const rooms = detail.rooms || [];
 
-                        <div className="admin-detail-section">
-                          <div className="admin-detail-title">Recent Activity</div>
-                          <div className="admin-detail-list">
-                            {(clinicDetails[clinic.id]?.activity || []).slice(0, 6).map((log) => (
-                              <div key={log.id} className="admin-detail-row">
-                                <span>{log.description}</span>
-                                <span>{new Date(log.timestamp).toLocaleString()}</span>
-                                <span>{log.type.replace('_', ' ')}</span>
+                          // 1. Key Metrics
+                          const totalAppts = appts.length;
+                          const completed = appts.filter(a => a.status === 'completed').length;
+                          const cancelled = appts.filter(a => a.status === 'cancelled').length;
+                          const confirmed = appts.filter(a => a.status === 'confirmed').length;
+                          const completionRate = totalAppts > 0 ? Math.round((completed / totalAppts) * 100) : 0;
+
+                          // 2. Monthly Trend (Last 6 Months)
+                          const trendData = [];
+                          const now = new Date();
+                          for (let i = 5; i >= 0; i--) {
+                            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                            const label = d.toLocaleString('en-US', { month: 'short' });
+                            const count = appts.filter(a => a.date && a.date.startsWith(key)).length;
+                            trendData.push({ label, count });
+                          }
+                          const maxTrend = Math.max(...trendData.map(d => d.count), 1);
+
+                          // 3. Top Treatments
+                          const treatmentCounts = {};
+                          appts.forEach(a => {
+                            if (a.treatmentId) treatmentCounts[a.treatmentId] = (treatmentCounts[a.treatmentId] || 0) + 1;
+                          });
+                          const topTreatments = Object.entries(treatmentCounts)
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([id, count]) => {
+                              const t = treatments.find(x => x.id === id);
+                              return { name: t ? t.name : 'Unknown', count, color: t?.color };
+                            });
+
+                          // 4. Top Staff
+                          const staffCounts = {};
+                          appts.forEach(a => {
+                            if (a.dentistId) staffCounts[a.dentistId] = (staffCounts[a.dentistId] || 0) + 1;
+                          });
+                          const topStaff = Object.entries(staffCounts)
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 5)
+                            .map(([id, count]) => {
+                              const s = staff.find(x => x.id === id);
+                              return { name: s ? s.name : 'Unknown', count, role: s?.role };
+                            });
+
+                          return (
+                            <div className="admin-analytics-dashboard">
+                              {/* Row 1: Key Metrics */}
+                              <div className="admin-analytics-grid">
+                                <div className="admin-stat-card">
+                                  <div className="admin-stat-label">Total Appointments</div>
+                                  <div className="admin-stat-value">{totalAppts}</div>
+                                  <div className="admin-stat-trend">Lifetime volume</div>
+                                </div>
+                                <div className="admin-stat-card">
+                                  <div className="admin-stat-label">Completion Rate</div>
+                                  <div className="admin-stat-value">{completionRate}%</div>
+                                  <div className="admin-stat-trend">{completed} completed</div>
+                                </div>
+                                <div className="admin-stat-card">
+                                  <div className="admin-stat-label">Cancellation Rate</div>
+                                  <div className="admin-stat-value">
+                                    {totalAppts > 0 ? Math.round((cancelled / totalAppts) * 100) : 0}%
+                                  </div>
+                                  <div className="admin-stat-trend">{cancelled} cancelled</div>
+                                </div>
+                                <div className="admin-stat-card">
+                                  <div className="admin-stat-label">Active Patients</div>
+                                  <div className="admin-stat-value">{patients.length}</div>
+                                  <div className="admin-stat-trend">Registered profiles</div>
+                                </div>
                               </div>
-                            ))}
-                            {(clinicDetails[clinic.id]?.activity || []).length === 0 && (
-                              <div className="empty-state">No activity yet</div>
-                            )}
-                          </div>
-                        </div>
 
-                        <div className="admin-detail-section">
-                          <div className="admin-detail-title">Clinic Settings</div>
-                          <div className="admin-detail-grid">
-                            <div><strong>Clinic Name:</strong> {clinicDetails[clinic.id]?.settings?.clinicName || 'Dental Clinic'}</div>
-                            <div><strong>Working Hours:</strong> {clinicDetails[clinic.id]?.settings?.workingHours?.start || '09:00'} - {clinicDetails[clinic.id]?.settings?.workingHours?.end || '18:00'}</div>
-                            <div><strong>Slot Duration:</strong> {clinicDetails[clinic.id]?.settings?.slotDuration || 30} mins</div>
-                          </div>
-                        </div>
+                              {/* Row 2: Charts & Breakdown */}
+                              <div className="admin-charts-row">
+                                <div className="admin-chart-container">
+                                  <div className="admin-chart-header">
+                                    <h4 className="admin-chart-title">Appointments Trend</h4>
+                                    <span className="admin-chart-subtitle">Last 6 Months</span>
+                                  </div>
+                                  <div className="admin-chart-content">
+                                    <div className="admin-chart-bars">
+                                      {trendData.map((d, idx) => (
+                                        <div key={idx} className="chart-bar-group">
+                                          <div
+                                            className="chart-bar"
+                                            style={{ height: `${(d.count / maxTrend) * 100}%` }}
+                                            title={`${d.label}: ${d.count}`}
+                                          ></div>
+                                          <span className="chart-label">{d.label}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="admin-chart-container">
+                                  <div className="admin-chart-header">
+                                    <h4 className="admin-chart-title">Status Breakdown</h4>
+                                    <span className="admin-chart-subtitle">Current Distribution</span>
+                                  </div>
+                                  <div className="admin-chart-content">
+                                    <div className="status-progress-group">
+                                      <div className="status-label-row">
+                                        <span>Confirmed</span>
+                                        <span>{confirmed}</span>
+                                      </div>
+                                      <div className="progress-bg">
+                                        <div className="progress-fill status-confirmed" style={{ width: `${totalAppts ? (confirmed / totalAppts) * 100 : 0}%` }}></div>
+                                      </div>
+                                    </div>
+                                    <div className="status-progress-group">
+                                      <div className="status-label-row">
+                                        <span>Completed</span>
+                                        <span>{completed}</span>
+                                      </div>
+                                      <div className="progress-bg">
+                                        <div className="progress-fill status-completed" style={{ width: `${totalAppts ? (completed / totalAppts) * 100 : 0}%` }}></div>
+                                      </div>
+                                    </div>
+                                    <div className="status-progress-group">
+                                      <div className="status-label-row">
+                                        <span>Cancelled</span>
+                                        <span>{cancelled}</span>
+                                      </div>
+                                      <div className="progress-bg">
+                                        <div className="progress-fill status-cancelled" style={{ width: `${totalAppts ? (cancelled / totalAppts) * 100 : 0}%` }}></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Row 3: Top Lists & Quick Actions */}
+                              <div className="admin-lists-row">
+                                <div className="admin-list-panel">
+                                  <div className="admin-panel-header-small">Top Treatments</div>
+                                  {topTreatments.map((t, i) => (
+                                    <div key={i} className="admin-list-row-small">
+                                      <div className="flex-row gap-2">
+                                        <span className="list-rank">#{i + 1}</span>
+                                        <span>{t.name}</span>
+                                      </div>
+                                      <span className="list-count">{t.count}</span>
+                                    </div>
+                                  ))}
+                                  {topTreatments.length === 0 && <div className="text-muted text-sm">No data</div>}
+                                </div>
+
+                                <div className="admin-list-panel">
+                                  <div className="admin-panel-header-small">Top Staff</div>
+                                  {topStaff.map((s, i) => (
+                                    <div key={i} className="admin-list-row-small">
+                                      <div className="flex-row gap-2">
+                                        <span className="list-rank">#{i + 1}</span>
+                                        <span>{s.name}</span>
+                                        {s.role && <span className="admin-tag-tiny">{s.role}</span>}
+                                      </div>
+                                      <span className="list-count">{s.count}</span>
+                                    </div>
+                                  ))}
+                                  {topStaff.length === 0 && <div className="text-muted text-sm">No data</div>}
+                                </div>
+
+                                <div className="admin-actions-panel">
+                                  <div className="admin-panel-header-small">Manage Data</div>
+                                  <div className="admin-actions-grid-small">
+                                    <button className="btn btn-secondary btn-sm w-100" onClick={() => openDetailModal(clinic.id, 'patients')}>Manage Patients</button>
+                                    <button className="btn btn-secondary btn-sm w-100" onClick={() => openDetailModal(clinic.id, 'appointments')}>Manage Bookings</button>
+                                    <button className="btn btn-secondary btn-sm w-100" onClick={() => openDetailModal(clinic.id, 'staff')}>Manage Staff</button>
+                                    <button className="btn btn-secondary btn-sm w-100" onClick={() => openDetailModal(clinic.id, 'treatments')}>Manage Services</button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Row 4: Activity & Settings */}
+                              <div className="admin-extras-row">
+                                <div className="admin-list-panel">
+                                  <div className="admin-panel-header-small">Recent Activity</div>
+                                  <div className="admin-detail-list">
+                                    {(clinicDetails[clinic.id]?.activity || []).slice(0, 5).map((log) => (
+                                      <div key={log.id} className="admin-list-row-small">
+                                        <div className="flex-col">
+                                          <span className="font-medium text-sm">{log.description}</span>
+                                          <span className="text-secondary text-xs">{new Date(log.timestamp).toLocaleString()}</span>
+                                        </div>
+                                        <span className="admin-tag-tiny">{log.type.replace('_', ' ')}</span>
+                                      </div>
+                                    ))}
+                                    {(clinicDetails[clinic.id]?.activity || []).length === 0 && (
+                                      <div className="text-muted text-sm">No recent activity</div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="admin-list-panel">
+                                  <div className="admin-panel-header-small">Clinic Settings</div>
+                                  <div className="admin-settings-grid">
+                                    <div className="setting-item">
+                                      <span className="setting-label">Clinic Name</span>
+                                      <span className="setting-value">{clinicDetails[clinic.id]?.settings?.clinicName || 'Dental Clinic'}</span>
+                                    </div>
+                                    <div className="setting-item">
+                                      <span className="setting-label">Working Hours</span>
+                                      <span className="setting-value">
+                                        {clinicDetails[clinic.id]?.settings?.workingHours?.start || '09:00'} - {clinicDetails[clinic.id]?.settings?.workingHours?.end || '18:00'}
+                                      </span>
+                                    </div>
+                                    <div className="setting-item">
+                                      <span className="setting-label">Slot Duration</span>
+                                      <span className="setting-value">{clinicDetails[clinic.id]?.settings?.slotDuration || 30} mins</span>
+                                    </div>
+                                    <div className="setting-item">
+                                      <span className="setting-label">Phone</span>
+                                      <span className="setting-value">{clinicDetails[clinic.id]?.settings?.phone || '-'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -730,11 +905,34 @@ export default function AdminDashboard({ onLogout }) {
                   + Create User
                 </button> */}
               </div>
-              {!DataStore.canCreateUsers && (
-                <div className="form-hint" style={{ marginBottom: 12 }}>
-                  Create users in Supabase Auth, or set VITE_ENABLE_ADMIN_CREATE_USERS=true to enable this button.
+              <div className="form-hint" style={{ marginBottom: 12 }}>
+                Create users in Supabase Auth, or set VITE_ENABLE_ADMIN_CREATE_USERS=true to enable this button.
+              </div>
+              <div className="admin-filter-container" style={{ marginBottom: 16 }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="admin-search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  <input
+                    type="text"
+                    placeholder="Search users..."
+                    className="admin-search-input"
+                    style={{ paddingLeft: 36, width: '100%' }}
+                    value={userFilter.query}
+                    onChange={(e) => setUserFilter(prev => ({ ...prev, query: e.target.value }))}
+                  />
                 </div>
-              )}
+                <select
+                  className="admin-select"
+                  style={{ width: 150 }}
+                  value={userFilter.sortBy}
+                  onChange={(e) => setUserFilter(prev => ({ ...prev, sortBy: e.target.value }))}
+                >
+                  <option value="newest">Newest First</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="alpha_asc">Name (A-Z)</option>
+                  <option value="alpha_desc">Name (Z-A)</option>
+                </select>
+              </div>
+
               {userSuccessMessage && (
                 <div className="admin-success-banner" style={{
                   marginBottom: 16,
@@ -751,35 +949,97 @@ export default function AdminDashboard({ onLogout }) {
                   {userSuccessMessage}
                 </div>
               )}
-              <div className="admin-list">
-                {users.map((user) => (
-                  <div key={user.id} className="admin-list-item">
-                    <div>
-                      <div className="admin-row-title">{user.username || user.email || 'Unknown user'}</div>
-                      <div className="admin-row-sub">
-                        {user.role}{' '}
-                        {user.clinicId
-                          ? `- ${clinics.find((c) => c.id === user.clinicId)?.name || 'Clinic'}`
-                          : '- Unassigned'}
-                      </div>
-                      <div className="admin-list-meta">
-                        <span>{user.name || 'Unnamed'}</span>
-                        <span>{user.status || 'active'}</span>
-                      </div>
-                    </div>
-                    <div className="admin-list-actions">
-                      {!user.clinicId && (
-                        <button className="btn btn-primary btn-sm" onClick={() => openUserModal(user)}>
-                          Assign Clinic
-                        </button>
-                      )}
-                      <button className="btn btn-secondary btn-sm" onClick={() => openUserModal(user)}>
-                        Manage
-                      </button>
-                    </div>
-                  </div>
-                ))}
-                {users.length === 0 && <div className="empty-state">No users yet</div>}
+              <div className="admin-table-container">
+                <table className="admin-table">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Name</th>
+                      <th>Account Type</th>
+                      <th>Phone</th>
+                      <th>Position</th>
+                      <th>Created At</th>
+                      <th>Status</th>
+                      <th style={{ textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.filter(u => {
+
+
+                      // Hide admin accounts always
+                      if (u.role === 'admin') return false;
+
+                      // Filter by search
+                      const q = userFilter.query.toLowerCase();
+                      const matchQuery = (
+                        (u.name || '').toLowerCase().includes(q) ||
+                        (u.email || '').toLowerCase().includes(q) ||
+                        (u.phone || '').toLowerCase().includes(q)
+                      );
+
+                      return matchQuery;
+                    }).sort((a, b) => {
+                      if (userFilter.sortBy === 'newest') {
+                        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                      }
+                      if (userFilter.sortBy === 'oldest') {
+                        return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+                      }
+                      if (userFilter.sortBy === 'alpha_asc') {
+                        return (a.name || a.email || '').localeCompare(b.name || b.email || '');
+                      }
+                      if (userFilter.sortBy === 'alpha_desc') {
+                        return (b.name || b.email || '').localeCompare(a.name || a.email || '');
+                      }
+                      return 0;
+                    }).map((user) => (
+                      <tr key={user.id}>
+                        <td className="font-medium">{user.email}</td>
+                        <td>{user.name || '-'}</td>
+                        <td>
+                          <div className="flex-col">
+                            <span className="text-capitalize">{user.role}</span>
+                            <span className="text-muted text-xs">
+                              {user.clinicId
+                                ? clinics.find(c => c.id === user.clinicId)?.name
+                                : 'Unassigned'}
+                            </span>
+                          </div>
+                        </td>
+                        <td>{user.phone || '-'}</td>
+                        <td>{user.role === 'dentist' ? 'Dentist' : 'Administrator'}</td>
+                        <td className="text-muted text-sm">
+                          {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}
+                        </td>
+                        <td>
+                          <span className={`admin-tag ${user.status === 'active' ? 'success' : 'warning'}`}>
+                            {user.status}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            className="btn btn-icon btn-ghost btn-sm"
+                            onClick={() => openUserModal(user)}
+                            title="Edit User"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {false && (
+                      <tr>
+                        <td colSpan="8" className="text-center py-4 text-muted">No visual users found (Admins hidden)</td>
+                      </tr>
+                    )}
+                    {users.length === 0 && (
+                      <tr>
+                        <td colSpan="8" className="text-center py-4 text-muted">No users found</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </section>
           </div>
@@ -807,17 +1067,54 @@ export default function AdminDashboard({ onLogout }) {
       {modalState.type === 'clinic' && (
         <Modal title={modalState.mode === 'edit' ? 'Edit Clinic' : 'Add Clinic'} onClose={closeModal}>
           <div className="modal-body">
-            <div className="form-group">
-              <label className="form-label">Clinic Name</label>
-              <input className="form-input" value={clinicForm.name} onChange={(e) => setClinicForm({ ...clinicForm, name: e.target.value })} />
-            </div>
             <div className="form-row">
               <div className="form-group">
-                <label className="form-label">City</label>
-                <input className="form-input" value={clinicForm.city} onChange={(e) => setClinicForm({ ...clinicForm, city: e.target.value })} />
+                <label className="form-label">Clinic Name</label>
+                <input
+                  className="form-input"
+                  value={clinicForm.name}
+                  onChange={(e) => {
+                    // Auto-generate slug if it hasn't been manually edited
+                    const name = e.target.value;
+                    const isManual = clinicForm.slug !== clinicForm.name.toLowerCase().replace(/\s+/g, '-');
+                    const updates = { name };
+                    if (!isManual || !clinicForm.slug) {
+                      updates.slug = name.toLowerCase().replace(/\s+/g, '-');
+                    }
+                    setClinicForm({ ...clinicForm, ...updates });
+                  }}
+                  placeholder="e.g. Downtown Dental"
+                />
               </div>
               <div className="form-group">
-                <label className="form-label">Plan</label>
+                <label className="form-label">Slug (Unique ID)</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    className="form-input"
+                    value={clinicForm.slug}
+                    onChange={(e) => setClinicForm({ ...clinicForm, slug: e.target.value.toLowerCase().replace(/\s+/g, '-') })}
+                    placeholder="downtown-dental"
+                    style={{ paddingLeft: '8px' }}
+                  />
+                  <div className="form-hint" style={{ marginTop: '4px' }}>
+                    Used for URLs. Must be unique.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">City / Location</label>
+                <input
+                  className="form-input"
+                  value={clinicForm.city}
+                  onChange={(e) => setClinicForm({ ...clinicForm, city: e.target.value })}
+                  placeholder="e.g. New York"
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Subscription Plan</label>
                 <select className="form-select" value={clinicForm.plan} onChange={(e) => setClinicForm({ ...clinicForm, plan: e.target.value })}>
                   {planOptions.map((option) => (
                     <option key={option} value={option}>{option}</option>
@@ -825,6 +1122,7 @@ export default function AdminDashboard({ onLogout }) {
                 </select>
               </div>
             </div>
+
             <div className="form-group">
               <label className="form-label">Status</label>
               <select className="form-select" value={clinicForm.status} onChange={(e) => setClinicForm({ ...clinicForm, status: e.target.value })}>

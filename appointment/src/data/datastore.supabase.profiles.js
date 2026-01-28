@@ -5,6 +5,7 @@ const mapProfile = (row) => ({
   username: row.email || "",
   email: row.email || "",
   role: row.account_type === "admin" ? "admin" : "dentist",
+  phone: row.phone || "",
   clinicId: row.clinic_id || "",
   name: row.name || "",
   status: row.status || "active",
