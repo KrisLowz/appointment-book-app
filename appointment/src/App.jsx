@@ -313,7 +313,7 @@ function AppContent() {
 
   if (authRole === 'admin') {
     return (
-      <AdminDashboard onLogout={signOut} />
+      <AdminDashboard onLogout={signOut} theme={theme} setTheme={setTheme} />
     );
   }
 
