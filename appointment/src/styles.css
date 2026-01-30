@@ -7738,6 +7738,7 @@ tbody tr:hover {
   padding-top: 1rem;
   padding-bottom: 1rem;
 }
+
 /* Admin Overview Enhancements */
 .admin-overview-grid {
   display: grid;
@@ -7760,11 +7761,9 @@ tbody tr:hover {
   height: 160px;
   border-radius: 50%;
   position: relative;
-  background: conic-gradient(
-    var(--success) 0deg 120deg,
-    var(--primary) 120deg 240deg,
-    var(--warning) 240deg 360deg
-  );
+  background: conic-gradient(var(--success) 0deg 120deg,
+      var(--primary) 120deg 240deg,
+      var(--warning) 240deg 360deg);
 }
 
 .admin-chart-donut::after {
@@ -7834,194 +7833,303 @@ tbody tr:hover {
   font-size: 12px;
 }
 
-.rank-1 { background: #fee2e2; color: #ef4444; } /* Red/Goldish */
-.rank-2 { background: #ffedd5; color: #f97316; } /* Orange */
-.rank-3 { background: #fef3c7; color: #f59e0b; } /* Yellow */
-
-
-/* Header Styles (Restored) */
-.header {
-  height: 64px; /* Fallback if variable missing */
-  height: var(--header-height, 64px);
-  padding: 0 var(--space-xl, 32px);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background-color: var(--bg-card, #ffffff);
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
-  position: sticky;
-  top: 0;
-  z-index: 40;
+.rank-1 {
+  background: #fee2e2;
+  color: #ef4444;
 }
 
-@media (max-width: 768px) {
-  .header {
-    padding: 0 var(--space-md, 16px);
-  }
+/* Red/Goldish */
+.rank-2 {
+  background: #ffedd5;
+  color: #f97316;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md, 16px);
+/* Orange */
+.rank-3 {
+  background: #fef3c7;
+  color: #f59e0b;
 }
 
-.header-title {
-  font-size: var(--font-size-lg, 1.125rem);
-  font-weight: 600;
-  color: var(--text-primary, #1e293b);
-  margin: 0;
-}
+/* Yellow */
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md, 16px);
-}
+/* ------------------------------------------------------------
+ * Admin Dashboard - Flexbox Redesign (v2)
+ * ------------------------------------------------------------ */
 
-.header-menu-btn {
-  display: none;
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--text-primary, #1e293b);
-  padding: 4px;
-}
-
-@media (max-width: 1024px) {
-  .header-menu-btn {
-    display: flex;
-  }
-}
-
-.hide-on-mobile {
-  display: inline;
-}
-
-@media (max-width: 640px) {
-  .hide-on-mobile {
-    display: none !important;
-  }
-}
-
-
-/* Admin Dashboard - Flex Layout Redesign */
-
-.admin-dashboard-flex {
+/* Layout Containers */
+.admin-flex-layout {
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  padding: 0;
-  width: 100%;
+  gap: 24px;
 }
 
 .admin-flex-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-md);
+  gap: 24px;
   width: 100%;
-  align-items: stretch;
 }
 
+.admin-overview-section {
+  width: 100%;
+}
+
+/* Cards */
 .admin-flex-card {
   background: var(--bg-card);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  padding: var(--space-lg);
-  box-shadow: var(--shadow-sm);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-/* Hero Cards */
-.hero-card {
-  flex: 1;
-  min-width: 240px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  align-items: flex-start;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
 }
 
-.hero-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+.admin-flex-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
   border-color: var(--primary-light);
 }
 
-.hero-icon-wrapper {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+.hero-row .admin-flex-card {
+  flex: 1;
+  min-width: 220px;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Hero Card Color Accents */
+.hero-row .admin-flex-card:nth-child(1) {
+  border-bottom: 3px solid #3b82f6;
+}
+
+.hero-row .admin-flex-card:nth-child(1):hover {
+  background: linear-gradient(to bottom right, var(--bg-card), rgba(59, 130, 246, 0.05));
+}
+
+.hero-row .admin-flex-card:nth-child(2) {
+  border-bottom: 3px solid #10b981;
+}
+
+.hero-row .admin-flex-card:nth-child(2):hover {
+  background: linear-gradient(to bottom right, var(--bg-card), rgba(16, 185, 129, 0.05));
+}
+
+.hero-row .admin-flex-card:nth-child(3) {
+  border-bottom: 3px solid #8b5cf6;
+}
+
+.hero-row .admin-flex-card:nth-child(3):hover {
+  background: linear-gradient(to bottom right, var(--bg-card), rgba(139, 92, 246, 0.05));
+}
+
+.hero-row .admin-flex-card:nth-child(4) {
+  border-bottom: 3px solid #f59e0b;
+}
+
+.hero-row .admin-flex-card:nth-child(4):hover {
+  background: linear-gradient(to bottom right, var(--bg-card), rgba(245, 158, 11, 0.05));
+}
+
+.chart-card {
+  min-height: 400px;
+}
+
+.table-card {
+  overflow: hidden;
+  /* For table border radius */
+}
+
+/* Utilities */
+.full-width {
+  width: 100%;
+}
+
+.grow-1 {
+  flex: 1;
+}
+
+.grow-2 {
+  flex: 2;
+  /* Takes twice the space of grow-1 if possible */
+  min-width: 500px;
+  /* Ensure charts have space */
+}
+
+/* Responsive Adjustments */
+@media (max-width: 1024px) {
+  .grow-2 {
+    min-width: 100%;
+    /* Stack on smaller desktops/tablets */
+  }
+}
+
+@media (max-width: 768px) {
+  .hero-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    /* 2x2 Grid on tablet */
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-row {
+    display: flex;
+    flex-direction: column;
+    /* Stack on mobile */
+  }
+}
+
+/* Recharts Tooltip Customization */
+.recharts-default-tooltip {
+  background-color: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  border-radius: 8px;
+  box-shadow: var(--shadow-lg);
+  color: var(--text-primary) !important;
+}
+
+/* ------------------------------------------------------------
+ * User Override: Confirmed Appointment Styling (No Background)
+ * ------------------------------------------------------------ */
+.day-appointment.status-confirmed {
+  background: transparent !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color);
+  box-shadow: none;
+}
+
+.day-appointment.status-confirmed .day-appointment-time,
+.day-appointment.status-confirmed .day-appointment-title {
+  color: var(--text-primary) !important;
+  font-weight: 500;
+}
+
+.day-appointment.status-confirmed:hover {
+  background: var(--bg-hover) !important;
+}
+
+/* ------------------------------------------------------------
+ * Header Menu Button Responsive Logic
+ * ------------------------------------------------------------ */
+/* Default hidden on Desktop */
+.header-menu-btn {
+  display: none !important;
+}
+
+/* Show on Mobile/Tablet */
+@media (max-width: 1024px) {
+  .header-menu-btn {
+    display: flex !important;
+  }
+}
+
+/* ------------------------------------------------------------
+ * Status Pills (Admin Dashboard & Lists)
+ * ------------------------------------------------------------ */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* Confirmed: Light Green */
+.status-pill.status-confirmed {
+  background-color: #d1fae5;
+  /* green-100 */
+  color: #065f46;
+  /* green-800 */
+}
+
+/* Pending: Light Yellow/Orange */
+.status-pill.status-pending {
+  background-color: #fef3c7;
+  /* amber-100 */
+  color: #92400e;
+  /* amber-800 */
+}
+
+/* Cancelled: Light Red */
+.status-pill.status-cancelled {
+  background-color: #fee2e2;
+  /* red-100 */
+  color: #991b1b;
+  /* red-800 */
+}
+
+/* Completed: Light Blue */
+.status-pill.status-completed {
+  background-color: #dbeafe;
+  /* blue-100 */
+  color: #1e40af;
+  /* blue-800 */
+}
+
+/* No Show: Light Gray/Zinc */
+.status-pill.status-no-show,
+.status-pill.status-noshow {
+  background-color: #f3f4f6;
+  /* gray-100 */
+  color: #374151;
+  /* gray-700 */
+}
+
+/* ------------------------------------------------------------
+ * Admin Modal Master-Detail Styles
+ * ------------------------------------------------------------ */
+.btn-link-back {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 24px;
+  gap: 6px;
+  padding: 0;
+  margin-bottom: 20px;
+  margin-top: -10px;
+  transition: color 0.2s;
 }
 
-.hero-icon-wrapper.blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.hero-icon-wrapper.green { background: linear-gradient(135deg, #10b981, #059669); }
-.hero-icon-wrapper.purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
-.hero-icon-wrapper.orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.btn-link-back:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
 
-.hero-label {
-  font-size: var(--font-size-sm);
+.full-height-form {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-date-badge {
+  background: var(--bg-secondary);
   color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  margin-right: 8px;
+  border: 1px solid var(--border-color);
 }
-
-.hero-value {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1.1;
-  margin: 4px 0;
-}
-
-.hero-trend {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-}
-
-/* Chart Cards */
-.chart-card-wide {
-  flex: 2;
-  min-width: 400px;
-  display: flex;
-  flex-direction: column;
-}
-
-.chart-card-narrow {
-  flex: 1;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-}
-
-.admin-card-header {
-  margin-bottom: var(--space-md);
-}
-
-.admin-card-title {
-  font-size: var(--font-size-lg);
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.admin-card-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .hero-card {
-    min-width: 100%;
-  }
-  .chart-card-wide, .chart-card-narrow {
-    min-width: 100%;
-  }
-}
-

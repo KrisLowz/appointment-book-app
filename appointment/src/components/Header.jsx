@@ -1,20 +1,22 @@
 import React from 'react';
 
-export default function Header({ title, onNewAppointment, onToggleSidebar, credits, onOpenCredits }) {
+export default function Header({ title, onNewAppointment, onToggleSidebar, credits, onOpenCredits, isSidebarOpen }) {
     return (
         <header className="header">
             <div className="header-left">
-                <button
-                    className="btn btn-icon header-menu-btn"
-                    onClick={onToggleSidebar}
-                    aria-label="Open menu"
-                >
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
+                {!isSidebarOpen && (
+                    <button
+                        className="btn btn-icon header-menu-btn"
+                        onClick={onToggleSidebar}
+                        aria-label="Open menu"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                )}
                 <h1 className="header-title">{title}</h1>
             </div>
 
@@ -22,7 +24,7 @@ export default function Header({ title, onNewAppointment, onToggleSidebar, credi
                 {/* Credits Badge */}
                 {credits !== undefined && (
                     <button
-                        className="btn btn-secondary btn-sm"
+                        className="credit-badge"
                         onClick={onOpenCredits}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
                     >

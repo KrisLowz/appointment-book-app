@@ -358,6 +358,7 @@ function AppContent() {
           title={viewTitle}
           onNewAppointment={() => setShowAppointmentModal(true)}
           onToggleSidebar={toggleSidebar}
+          isSidebarOpen={sidebarOpen}
           credits={credits}
           onOpenCredits={() => setShowCreditModal(true)}
         />
