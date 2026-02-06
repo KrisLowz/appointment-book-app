@@ -14,13 +14,28 @@ const mapStaff = (row) => ({
   createdAt: row.created_at,
 });
 
+// Assuming your Worker is deployed at this URL
+const API_URL = "https://sso.mrburstudio.com/api";
+
+// Helper to get headers
+async function getHeaders() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error("No active session");
+  return {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
+}
+
 export async function getStaff(clinicId) {
-  const { data, error } = await supabase
-    .from("apt_staff")
-    .select("*")
-    .eq("clinic_id", clinicId)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
+  const headers = await getHeaders();
+  const params = new URLSearchParams({ clinicId });
+
+  const response = await fetch(`${API_URL}/staff?${params.toString()}`, { headers });
+  if (!response.ok) throw new Error(await response.text());
+
+  const data = await response.json();
   return (data || []).map(mapStaff);
 }
 
@@ -37,12 +52,17 @@ export async function addStaff(clinicId, staffMember) {
     end_time: staffMember.endTime || null,
     assigned_to: staffMember.assignedTo || null,
   };
-  const { data, error } = await supabase
-    .from("apt_staff")
-    .insert(payload)
-    .select("*")
-    .single();
-  if (error) throw error;
+
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/staff`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+
+  const data = await response.json();
   return mapStaff(data);
 }
 
@@ -58,18 +78,27 @@ export async function updateStaff(id, updates) {
     ...(updates.endTime !== undefined ? { end_time: updates.endTime } : {}),
     ...(updates.assignedTo !== undefined ? { assigned_to: updates.assignedTo || null } : {}),
   };
-  const { data, error } = await supabase
-    .from("apt_staff")
-    .update(payload)
-    .eq("id", id)
-    .select("*")
-    .single();
-  if (error) throw error;
+
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/staff?id=${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+
+  const data = await response.json();
   return mapStaff(data);
 }
 
 export async function deleteStaff(id) {
-  const { error } = await supabase.from("apt_staff").delete().eq("id", id);
-  if (error) throw error;
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/staff?id=${id}`, {
+    method: "DELETE",
+    headers
+  });
+
+  if (!response.ok) throw new Error(await response.text());
   return true;
 }

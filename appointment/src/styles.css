@@ -203,15 +203,13 @@ textarea:focus-visible,
    ============================================ */
 
 .login-page {
-  min-height: 100vh;
-  /* Allow scrolling on small screens */
-  height: auto;
+  height: 100vh;
+  /* Contain within viewport */
+  width: 100%;
   overflow-y: auto;
   /* Enable internal scrolling */
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
   padding: var(--space-xl);
   background: radial-gradient(circle at top, rgba(36, 82, 160, 0.12), transparent 55%), var(--bg-primary);
 }
@@ -226,14 +224,12 @@ textarea:focus-visible,
   box-shadow: var(--shadow-lg);
   text-align: center;
   margin: auto;
-  /* Center in flex container if height is large */
+  /* Centers card vertically and horizontally */
 }
 
 @media (max-width: 480px) {
   .login-page {
     padding: var(--space-md);
-    justify-content: flex-start;
-    /* Align top on mobile keyb open */
   }
 
   .login-card {
@@ -241,6 +237,10 @@ textarea:focus-visible,
     border: none;
     box-shadow: none;
     background: transparent;
+    margin: 0 auto;
+    /* Remove vertical centering on very small screens if preferred, or keep 'auto' */
+    margin-top: var(--space-xl);
+    /* Push down slightly from top */
   }
 }
 
@@ -6568,7 +6568,10 @@ tbody tr:hover {
     top: 0;
     left: 0;
     height: 100%;
-    width: 280px;
+    width: 320px;
+    /* Wider for better layout on tablet/minimized */
+    max-width: 85vw;
+    /* Safety for very small mobile */
     background: var(--surface);
     display: flex;
     flex-direction: column;
@@ -6603,19 +6606,21 @@ tbody tr:hover {
     display: flex !important;
   }
 
-  /* Sidebar */
-  .sidebar-booking-row {
-    flex-direction: column;
-    align-items: stretch;
-  }
+  /* Sidebar Booking - Keep row on tablet, column on phone */
+  @media (max-width: 480px) {
+    .sidebar-booking-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
 
-  .sidebar-booking-input {
-    width: 100%;
-    margin-bottom: var(--space-xs);
-  }
+    .sidebar-booking-input {
+      width: 100%;
+      margin-bottom: var(--space-xs);
+    }
 
-  .sidebar-booking-row .btn {
-    width: 100%;
+    .sidebar-booking-row .btn {
+      width: 100%;
+    }
   }
 
   /* Main Sidebar Navigation */
@@ -6655,25 +6660,21 @@ tbody tr:hover {
     border-bottom: 1px solid var(--border);
     margin-bottom: var(--space-md);
     display: flex;
-    /* Ensure flex */
-    flex-direction: column !important;
-    /* Force column as requested */
-    overflow-x: hidden;
-    padding-bottom: 0;
-    gap: 0;
-    /* Remove gap */
+    flex-direction: row !important;
+    /* Force row for horizontal scroll */
+    overflow-x: auto;
+    padding-bottom: var(--space-xs);
+    /* Add slight padding for scrollbar */
+    gap: var(--space-xs);
   }
 
   .settings-nav-item {
     white-space: nowrap;
     flex-shrink: 0;
-    width: 100%;
-    /* Full width */
-    text-align: left;
-    /* Align text left */
-    justify-content: flex-start;
+    width: auto;
+    /* Reset width */
+    text-align: center;
     padding: 8px var(--space-md);
-    /* Compact settings items */
     border-radius: var(--radius-sm);
   }
 
@@ -6696,6 +6697,29 @@ tbody tr:hover {
   .admin-shell {
     grid-template-columns: 1fr;
     /* Single column */
+  }
+
+  /* Admin List Mobile Fixes */
+  .admin-list-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-md);
+  }
+
+  .admin-list-actions {
+    width: 100%;
+    margin-top: var(--space-xs);
+    justify-content: flex-end;
+  }
+
+  .admin-list-meta {
+    flex-wrap: wrap;
+    /* Allow stats to wrap */
+  }
+
+  .admin-settings-grid {
+    grid-template-columns: 1fr;
+    /* Stack settings */
   }
 
   .admin-sidebar {
@@ -6984,6 +7008,92 @@ tbody tr:hover {
   .login-sample-accounts {
     font-size: var(--font-size-xs);
     padding: var(--space-md);
+  }
+
+  .calendar-container {
+    overflow-x: auto;
+    /* Enable horizontal scroll */
+    display: block;
+    /* Remove flex if present */
+  }
+
+  .calendar-month,
+  .week-header,
+  .week-body,
+  .calendar-day-view {
+    min-width: 800px;
+    /* Force minimum width to prevent squeezing */
+  }
+
+  .calendar-top-nav,
+  .calendar-header {
+    min-width: 800px;
+    /* Ensure header aligns with grid */
+  }
+
+  /* Today View Mobile Fixes */
+  .today-appointment-card {
+    flex-direction: column;
+    /* Stack vertically on mobile */
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+
+  .today-appointment-time {
+    width: 100%;
+    /* Full width time */
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    border-bottom: 1px solid var(--border-light);
+    padding-bottom: var(--space-xs);
+  }
+
+  .today-appointment-time-start,
+  .today-appointment-time-end {
+    font-size: var(--font-size-md);
+    /* Slightly smaller */
+  }
+
+  /* Settings View Mobile Fixes */
+  .staff-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .staff-avatar {
+    flex-shrink: 0;
+    margin-right: var(--space-xs);
+  }
+
+  .staff-info {
+    flex: 1;
+    min-width: 0;
+    /* Allow text truncate */
+    padding-right: 0;
+  }
+
+  .staff-actions {
+    width: 100%;
+    margin-top: var(--space-xs);
+    text-align: right;
+    /* Keep View button right */
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .settings-list-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-sm);
+  }
+
+  .settings-list-item .settings-cta {
+    align-self: flex-end;
   }
 }
 
@@ -8022,9 +8132,14 @@ tbody tr:hover {
 }
 
 /* Show on Mobile/Tablet */
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .header-menu-btn {
     display: flex !important;
+  }
+
+  /* Force hide menu button when sidebar is open */
+  .sidebar.open~.main-content .header-menu-btn {
+    display: none !important;
   }
 }
 

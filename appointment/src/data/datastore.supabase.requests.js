@@ -35,14 +35,28 @@ const mapRequest = (row) => ({
   reviewedAt: row.reviewed_at,
 });
 
+// Assuming your Worker is deployed at this URL
+const API_URL = "https://sso.mrburstudio.com/api";
+
+// Helper to get headers
+async function getHeaders() {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) throw new Error("No active session");
+  return {
+    "Authorization": `Bearer ${token}`,
+    "Content-Type": "application/json"
+  };
+}
+
 export async function getAppointmentRequests(clinicId) {
-  const { data, error } = await supabase
-    .from("appointment_requests")
-    .select("*")
-    .eq("clinic_id", clinicId)
-    .order("created_at", { ascending: false })
-    .limit(50);
-  if (error) throw error;
+  const headers = await getHeaders();
+  const params = new URLSearchParams({ clinicId });
+
+  const response = await fetch(`${API_URL}/requests?${params.toString()}`, { headers });
+  if (!response.ok) throw new Error(await response.text());
+
+  const data = await response.json();
   return (data || []).map(mapRequest);
 }
 
@@ -51,12 +65,16 @@ export async function updateAppointmentRequest(id, updates) {
     ...(updates.status !== undefined ? { status: updates.status } : {}),
     ...(updates.reviewedAt !== undefined ? { reviewed_at: updates.reviewedAt } : {}),
   };
-  const { data, error } = await supabase
-    .from("appointment_requests")
-    .update(payload)
-    .eq("id", id)
-    .select("*")
-    .single();
-  if (error) throw error;
+
+  const headers = await getHeaders();
+  const response = await fetch(`${API_URL}/requests?id=${id}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) throw new Error(await response.text());
+
+  const data = await response.json();
   return mapRequest(data);
 }
