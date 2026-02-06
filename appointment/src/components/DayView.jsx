@@ -25,7 +25,7 @@ export default function DayView({
   const dentists = (staff || []).filter((s) => s.role === 'dentist');
   const dayOfWeek = currentDate.getDay();
   const dateStr = toISODate(currentDate);
-  const todaysAppointments = appointments.filter((apt) => apt.date === dateStr && apt.status !== 'cancelled');
+  const todaysAppointments = appointments.filter((apt) => apt.date === dateStr);
   const isToday = sameDate(currentDate, new Date());
   const now = new Date();
   const nowMinutes = isToday ? now.getHours() * 60 + now.getMinutes() : null;
@@ -36,8 +36,8 @@ export default function DayView({
     isPastDate
       ? columnHeight
       : isToday && nowMinutes !== null
-      ? Math.min(Math.max(0, nowMinutes - dayStartMinutes), columnHeight)
-      : 0;
+        ? Math.min(Math.max(0, nowMinutes - dayStartMinutes), columnHeight)
+        : 0;
   const gridRef = useRef(null);
   const dragRef = useRef(null);
   const [dragPreview, setDragPreview] = useState(null);
@@ -68,54 +68,55 @@ export default function DayView({
   };
   const statusClass = (status) => {
     if (status === 'no-show') return 'noshow';
-    return status || 'confirmed';
+    if (!status) return 'scheduled';
+    if (['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) return status;
+    return 'scheduled';
   };
   const statusIcon = (status) => {
     const cls = statusClass(status);
-    if (cls === 'confirmed') {
-      return (
-        <span className={`status-icon ${cls}`} title={cls.toUpperCase()}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M3 8.5l3 3L13 4.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      );
-    }
-    if (cls === 'completed') {
-      return (
-        <span className={`status-icon ${cls}`} title={cls.toUpperCase()}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path d="M4.5 8.5l2.3 2.3L11.5 5.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-      );
-    }
-    if (cls === 'cancelled') {
-      return (
-        <span className={`status-icon ${cls}`} title={cls.toUpperCase()}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </span>
-      );
-    }
-    if (cls === 'noshow') {
-      return (
-        <span className={`status-icon ${cls}`} title={cls.toUpperCase()}>
-          <svg viewBox="0 0 16 16" aria-hidden="true">
-            <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-            <path d="M4.5 11.5l7-7" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </span>
-      );
-    }
-    return (
-      <span className={`status-icon ${cls}`} title={cls.toUpperCase()}>
-        <svg viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-          <path d="M8 4v4l2.5 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    // Design: Minimal circular indicators with specific icons
+    const icons = {
+      scheduled: (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="8" cy="8" r="6" />
+          <polyline points="8 4 8 8 10 9" />
         </svg>
+      ),
+      pending: (
+        <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="icon-spin">
+          <path d="M8 2a6 6 0 1 1-4.24 1.76" />
+        </svg>
+      ),
+      confirmed: (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="2.5 8.5 6 12 13.5 3.5" />
+        </svg>
+      ),
+      completed: (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
+          <circle cx="8" cy="8" r="6" />
+        </svg>
+      ),
+      cancelled: (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="4" y1="4" x2="12" y2="12" />
+          <line x1="12" y1="4" x2="4" y2="12" />
+        </svg>
+      ),
+      noshow: (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="8" cy="8" r="6" />
+          <line x1="12" y1="8" x2="4" y2="8" />
+        </svg>
+      )
+    };
+
+    // Fallback
+    const icon = icons[cls] || icons.scheduled;
+
+    return (
+      <span className={`status-bubble ${cls}`} title={status ? status.toUpperCase() : 'CONFIRMED'}>
+        {icon}
       </span>
     );
   };
@@ -221,7 +222,7 @@ export default function DayView({
   return (
     <div className="calendar-day-view" style={{ display: 'flex', minHeight: columnHeight + 120 }}>
       <div className="day-time-column" style={{ flexShrink: 0 }}>
-        <div style={{ height: 50, borderBottom: '1px solid var(--border-light)' }}></div>
+        <div style={{ height: 70, borderBottom: '1px solid var(--border-light)' }}></div>
         {Array(endHour - startHour)
           .fill(0)
           .map((_, i) => {
@@ -234,7 +235,7 @@ export default function DayView({
           })}
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div className="dentist-headers">
           {dentists.map((dentist) => {
             const isWorkingDay = dentist.workingDays ? dentist.workingDays.indexOf(dayOfWeek) !== -1 : true;
@@ -277,7 +278,7 @@ export default function DayView({
           )}
         </div>
 
-        <div ref={gridRef} style={{ flex: 1, overflow: 'auto' }}>
+        <div ref={gridRef} style={{ flex: 1 }}>
           <div style={{ display: 'flex', position: 'relative', height: columnHeight }}>
             {dentists.map((dentist) => {
               const isWorkingDay = dentist.workingDays ? dentist.workingDays.indexOf(dayOfWeek) !== -1 : true;
@@ -349,10 +350,13 @@ export default function DayView({
                         style={{
                           top,
                           height: height,
+                          left: 4,
+                          right: 4,
                           background: getColorBg ? getColorBg(color) : '#E8F4F8',
                           color,
-                          borderLeft: `3px solid ${color}`,
+                          borderLeft: `5px solid ${color}`,
                           position: 'absolute',
+                          zIndex: 10,
                         }}
                         onDragStart={handleDragStart(apt)}
                         onDragEnd={handleDragEnd}
@@ -437,10 +441,13 @@ export default function DayView({
                       style={{
                         top,
                         height: height,
+                        left: 4,
+                        right: 4,
                         background: getColorBg ? getColorBg(color) : '#E8F4F8',
                         color,
-                        borderLeft: `3px solid ${color}`,
+                        borderLeft: `5px solid ${color}`,
                         position: 'absolute',
+                        zIndex: 10,
                       }}
                       onDragStart={handleDragStart(apt)}
                       onDragEnd={handleDragEnd}

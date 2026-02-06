@@ -3,6 +3,8 @@ import { Fragment, useMemo, useState } from 'react';
 import { getColorBg } from '../utils/colors';
 import { getInitials } from '../utils/people';
 import Modal from './Modal';
+import ConfirmDialog from './ConfirmDialog';
+import { useToast } from '../context/ToastProvider';
 
 export default function SettingsView({
   settings,
@@ -27,6 +29,7 @@ export default function SettingsView({
   theme,
   setTheme,
 }) {
+  const { addToast } = useToast();
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const colorOptions = ['#4A90A4', '#7CB798', '#E5C07B', '#9B8AC4', '#E07B7B', '#A8D8EA'];
   const specialtyOptions = ['General', 'Endodontics', 'Pediatric', 'Orthodontics', 'Periodontics', 'Prosthodontics'];
@@ -60,6 +63,7 @@ export default function SettingsView({
     type: 'public',
     isPublic: true,
   });
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
 
   const dentists = useMemo(() => staff.filter((s) => s.role === 'dentist'), [staff]);
   const nurses = useMemo(() => staff.filter((s) => s.role === 'nurse'), [staff]);
@@ -78,7 +82,7 @@ export default function SettingsView({
       slotDuration: Number(form.slotDuration) || 30,
       restDays: form.restDays,
     });
-    alert('Settings saved');
+    addToast('Settings saved', 'success');
   };
 
   const openRoomModal = (room) => {
@@ -160,7 +164,7 @@ export default function SettingsView({
 
   const handleRoomSubmit = () => {
     if (!roomForm.name.trim()) {
-      alert('Enter room name');
+      addToast('Enter room name', 'error');
       return;
     }
     if (roomForm.id) {
@@ -173,7 +177,7 @@ export default function SettingsView({
 
   const handleTreatmentSubmit = () => {
     if (!treatmentForm.name.trim()) {
-      alert('Enter treatment name');
+      addToast('Enter treatment name', 'error');
       return;
     }
     const payload = {
@@ -194,7 +198,7 @@ export default function SettingsView({
 
   const handleStaffSubmit = () => {
     if (!staffForm.name.trim()) {
-      alert('Enter staff name');
+      addToast('Enter staff name', 'error');
       return;
     }
     const payload = {
@@ -218,7 +222,7 @@ export default function SettingsView({
 
   const handleHolidaySubmit = () => {
     if (!holidayForm.name || !holidayForm.startDate) {
-      alert('Enter holiday name and start date');
+      addToast('Enter holiday name and start date', 'error');
       return;
     }
     if (holidayForm.id) {
@@ -231,18 +235,34 @@ export default function SettingsView({
 
   const handleDelete = () => {
     if (modalState.type === 'room' && roomForm.id) {
-      if (window.confirm('Delete room?')) deleteRoom(roomForm.id);
+      setConfirmDialog({ open: true, type: 'room', payload: { id: roomForm.id, name: roomForm.name } });
     }
     if (modalState.type === 'treatment' && treatmentForm.id) {
-      if (window.confirm('Delete treatment?')) deleteTreatment(treatmentForm.id);
+      setConfirmDialog({ open: true, type: 'treatment', payload: { id: treatmentForm.id, name: treatmentForm.name } });
     }
     if (modalState.type === 'staff' && staffForm.id) {
-      if (window.confirm('Delete staff?')) deleteStaff(staffForm.id);
+      setConfirmDialog({ open: true, type: 'staff', payload: { id: staffForm.id, name: staffForm.name } });
     }
     if (modalState.type === 'holiday' && holidayForm.id) {
-      if (window.confirm('Delete holiday?')) deleteHoliday(holidayForm.id);
+      setConfirmDialog({ open: true, type: 'holiday', payload: { id: holidayForm.id, name: holidayForm.name } });
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDialog.type === 'room' && confirmDialog.payload?.id) {
+      deleteRoom(confirmDialog.payload.id);
+    }
+    if (confirmDialog.type === 'treatment' && confirmDialog.payload?.id) {
+      deleteTreatment(confirmDialog.payload.id);
+    }
+    if (confirmDialog.type === 'staff' && confirmDialog.payload?.id) {
+      deleteStaff(confirmDialog.payload.id);
+    }
+    if (confirmDialog.type === 'holiday' && confirmDialog.payload?.id) {
+      deleteHoliday(confirmDialog.payload.id);
     }
     closeModal();
+    setConfirmDialog({ open: false, type: '', payload: null });
   };
 
   const renderDayChips = (workingDays) => (
@@ -290,7 +310,7 @@ export default function SettingsView({
 
   return (
     <div className="settings-layout">
-      <aside className="settings-nav">
+      <aside className="settings-nav" role="tablist" aria-label="Settings sections">
         {[
           { id: 'staff', label: 'Staff' },
           { id: 'rooms', label: 'Rooms' },
@@ -302,6 +322,8 @@ export default function SettingsView({
             key={item.id}
             className={`settings-nav-item ${activeSection === item.id ? 'active' : ''}`}
             onClick={() => setActiveSection(item.id)}
+            role="tab"
+            aria-selected={activeSection === item.id}
           >
             {item.label}
           </button>
@@ -818,6 +840,15 @@ export default function SettingsView({
           </div>
         </Modal>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={`Delete ${confirmDialog.type}`}
+        description={`This will permanently remove the ${confirmDialog.type}. This action cannot be undone.`}
+        confirmLabel={`Delete ${confirmDialog.type}`}
+        confirmVariant="danger"
+        onClose={() => setConfirmDialog({ open: false, type: '', payload: null })}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

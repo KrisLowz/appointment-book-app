@@ -1,9 +1,10 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import Modal from './Modal';
-import { addMinutes } from '../utils/time';
+import { addMinutes, formatTime, minutesToTime } from '../utils/time';
 import { todayISO } from '../utils/date';
 import { getInitials } from '../utils/people';
 import { getColorBg } from '../utils/colors';
+import { useToast } from '../context/ToastProvider';
 
 export default function AppointmentForm({
   patients,
@@ -16,7 +17,10 @@ export default function AppointmentForm({
   onClose,
   settings,
   initialData,
+  searchPatients,
+  credits,
 }) {
+  const { addToast } = useToast();
   const defaultDuration = settings && settings.slotDuration ? settings.slotDuration : 30;
   const [form, setForm] = useState({
     patientId: patients[0] ? patients[0].id : '',
@@ -38,7 +42,18 @@ export default function AppointmentForm({
   const today = todayISO();
   const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const minDate = isEditing ? undefined : today;
-  const minTime = !isEditing && form.date === today ? currentTime : undefined;
+
+  // Working Hours Constraints
+  const workingStart = settings?.workingHours?.start || '00:00';
+  const workingEnd = settings?.workingHours?.end || '23:59';
+
+  // If today, min time is the LATER of (Now, Working Start)
+  // If future date, min time is Working Start
+  let minTime = workingStart;
+  if (!isEditing && form.date === today) {
+    minTime = currentTime > workingStart ? currentTime : workingStart;
+  }
+  const maxTime = workingEnd;
 
   useEffect(() => {
     if (initialData) {
@@ -86,11 +101,40 @@ export default function AppointmentForm({
   const endTime = useMemo(() => addMinutes(form.startTime, form.duration), [form.startTime, form.duration]);
   const selectedPatient = patients.find((p) => String(p.id) === String(form.patientId));
   const selectedTreatment = treatments.find((t) => String(t.id) === String(form.treatmentId));
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+
+  useEffect(() => {
+    if (!patientQuery) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      if (searchPatients) {
+        setIsSearching(true);
+        try {
+          // If we have less than 50 patients locally, we *could* filter locally, 
+          // but to be consistent with potential large datasets, let's always ask the server 
+          // or at least favor the server results if we can't find it locally.
+          // For now, let's rely on server search.
+          const results = await searchPatients(patientQuery);
+          setSearchResults(results);
+        } catch (err) {
+          console.error("Search failed", err);
+        } finally {
+          setIsSearching(false);
+        }
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [patientQuery, searchPatients]);
+
   const filteredPatients = useMemo(() => {
     if (!patientQuery) return patients;
-    const q = patientQuery.toLowerCase();
-    return patients.filter((p) => (p.name || '').toLowerCase().includes(q));
-  }, [patients, patientQuery]);
+    return searchResults;
+  }, [patients, patientQuery, searchResults]);
 
   const isDentistBusy = (dentistId) => {
     if (!dentistId) return false;
@@ -112,10 +156,25 @@ export default function AppointmentForm({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isEditing && credits < 1) {
+      addToast("Insufficient credits to create a new appointment.", 'error');
+      return;
+    }
     if (!form.patientId || !form.date || !form.startTime) return;
     if (!isEditing && (form.date < today || (form.date === today && form.startTime <= currentTime))) {
-      alert('Please choose a future date and time.');
+      addToast('Please choose a future date and time.', 'warning');
       return;
+    }
+
+    // Working Hours Validation
+    if (settings && settings.workingHours) {
+      const { start, end } = settings.workingHours;
+      if (start && end) {
+        if (form.startTime < start || endTime > end) {
+          addToast(`Appointment must be within working hours (${formatTime(start)} - ${formatTime(end)}).`, 'warning');
+          return;
+        }
+      }
     }
     onSave({
       ...form,
@@ -142,6 +201,10 @@ export default function AppointmentForm({
     { id: 'cancelled', label: 'Cancelled' },
     { id: 'no-show', label: 'No Show' },
   ];
+
+
+  const showCreditWarning = !isEditing && credits < 1;
+
 
   return (
     <Modal title={isEditing ? 'Edit Appointment' : 'New Appointment'} onClose={onClose}>
@@ -176,7 +239,8 @@ export default function AppointmentForm({
                   onChange={(e) => setPatientQuery(e.target.value)}
                 />
                 <div className="patient-list">
-                  {filteredPatients.map((p) => (
+                  {isSearching && <div style={{ padding: 12, color: 'var(--text-muted)' }}>Searching...</div>}
+                  {!isSearching && filteredPatients.map((p) => (
                     <div
                       key={p.id}
                       className={`patient-item ${String(form.patientId) === String(p.id) ? 'selected' : ''}`}
@@ -189,7 +253,7 @@ export default function AppointmentForm({
                       </div>
                     </div>
                   ))}
-                  {filteredPatients.length === 0 && (
+                  {!isSearching && filteredPatients.length === 0 && (
                     <div className="empty-state" style={{ padding: 12 }}>
                       No matching patients.
                     </div>
@@ -214,16 +278,42 @@ export default function AppointmentForm({
             <div className="form-group">
               <label className="form-label">Time</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  className="form-input"
-                  type="time"
+                <select
+                  className="form-select"
                   value={form.startTime}
                   onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                  min={minTime}
                   required
-                />
+                >
+                  {(() => {
+                    const startMin = Number(workingStart.split(':')[0]) * 60 + Number(workingStart.split(':')[1]);
+                    const endMin = Number(workingEnd.split(':')[0]) * 60 + Number(workingEnd.split(':')[1]);
+                    const step = 15; // fixed step for dropdown
+                    const slots = [];
+
+                    for (let m = startMin; m < endMin; m += step) {
+                      const timeStr = minutesToTime(m);
+                      // If today, filter out past times
+                      if (!isEditing && form.date === today && timeStr <= currentTime) {
+                        continue;
+                      }
+                      slots.push(timeStr);
+                    }
+
+                    // If current startTime is not in slots (e.g. from editing an odd time), add it
+                    if (form.startTime && !slots.includes(form.startTime)) {
+                      slots.push(form.startTime);
+                      slots.sort();
+                    }
+
+                    if (slots.length === 0) return <option disabled>No slots available</option>;
+
+                    return slots.map(t => (
+                      <option key={t} value={t}>{formatTime(t)}</option>
+                    ));
+                  })()}
+                </select>
                 <span className="text-muted" style={{ fontSize: 12 }}>to</span>
-                <input className="form-input" type="time" value={endTime} readOnly />
+                <input className="form-input" type="time" value={endTime} readOnly disabled style={{ background: 'var(--bg-secondary)' }} />
               </div>
             </div>
           </div>
@@ -368,6 +458,11 @@ export default function AppointmentForm({
         </div>
 
         <div className="modal-footer">
+          {showCreditWarning && (
+            <div style={{ color: 'red', fontWeight: 'bold', marginRight: 'auto' }}>
+              Insufficient Credits (0)
+            </div>
+          )}
           <div className="flex-1"></div>
           {isEditing && (
             <button
@@ -381,7 +476,7 @@ export default function AppointmentForm({
           <button type="button" className="btn btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary">
+          <button type="submit" className="btn btn-primary" disabled={showCreditWarning}>
             {isEditing ? 'Save Appointment' : 'Create Appointment'}
           </button>
         </div>

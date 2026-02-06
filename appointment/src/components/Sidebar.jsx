@@ -1,4 +1,7 @@
-export default function Sidebar({ view, onChange, theme, setTheme, onLogout, bookingLink }) {
+import { useToast } from '../context/ToastProvider';
+
+export default function Sidebar({ view, onChange, theme, setTheme, onLogout, bookingLink, isOpen, onClose }) {
+  const { addToast } = useToast();
   const items = [
     { id: 'calendar', label: 'Calendar', icon: 'calendar' },
     { id: 'today', label: 'Today', icon: 'clock' },
@@ -70,22 +73,34 @@ export default function Sidebar({ view, onChange, theme, setTheme, onLogout, boo
   };
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
       <div className="sidebar-header">
         <div className="sidebar-logo">
           <img className="sidebar-logo-img" src="/assets/Mr_Bur_Logo-01.png" alt="MR.BUR" />
         </div>
+        <button
+          type="button"
+          className="btn btn-icon sidebar-close-btn"
+          onClick={onClose}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
-      <nav className="sidebar-nav">
+      <nav className="sidebar-nav" aria-label="Primary">
         {items.map((item) => (
-          <div
+          <button
             key={item.id}
+            type="button"
             className={`nav-item ${view === item.id ? 'active' : ''}`}
             onClick={() => onChange(item.id)}
+            aria-current={view === item.id ? 'page' : undefined}
           >
             {renderIcon(item.icon)}
             <span>{item.label}</span>
-          </div>
+          </button>
         ))}
       </nav>
       <div className="sidebar-footer">
@@ -99,6 +114,7 @@ export default function Sidebar({ view, onChange, theme, setTheme, onLogout, boo
               className="form-input sidebar-booking-input"
               value={bookingLink || 'Set clinic slug to enable link'}
               readOnly
+              aria-label="Booking link"
             />
             <button
               className="btn btn-secondary btn-sm"
@@ -127,6 +143,7 @@ export default function Sidebar({ view, onChange, theme, setTheme, onLogout, boo
               type="checkbox"
               checked={theme === 'dark'}
               onChange={(e) => setTheme(e.target.checked ? 'dark' : 'light')}
+              aria-label="Toggle dark mode"
             />
             <span className="theme-slider"></span>
             <span className="theme-label">{theme === 'dark' ? 'Dark' : 'Light'}</span>

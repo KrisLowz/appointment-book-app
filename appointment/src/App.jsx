@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import useDataStore from './hooks/useDataStore';
+import { useAuth } from './context/AuthProvider';
+import { ToastProvider, useToast } from './context/ToastProvider';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import CalendarView from './components/CalendarView';
@@ -14,7 +16,10 @@ import PatientModal from './components/PatientModal';
 import LoginView from './components/LoginView';
 import AdminDashboard from './components/AdminDashboard';
 import PublicBookingView from './components/PublicBookingView';
+import ConfirmDialog from './components/ConfirmDialog';
+import CreditModal from './components/CreditModal';
 import { todayISO } from './utils/date';
+import { startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { supabase } from './lib/supabaseClient';
 import DataStore from "./data";
 
@@ -25,23 +30,29 @@ const getBookingSlugFromPath = () => {
 };
 
 export default function App() {
-  const clearSupabaseAuthStorage = () => {
-    try {
-      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
-        const key = localStorage.key(i);
-        if (!key) continue;
-        if (key.startsWith('sb-') || key.startsWith('supabase.auth.')) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to clear auth storage', err);
-    }
-  };
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
+  );
+}
+
+function AppContent() {
+  const { addToast } = useToast();
+  const {
+    session,
+    user,
+    profile,
+    role: authRole,
+    activeClinicId,
+    loading: authLoading,
+    error: authError,
+    signOut
+  } = useAuth();
+
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved === 'light' || saved === 'dark') return saved;
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     return 'light';
   });
 
@@ -54,77 +65,12 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [profileLoading, setProfileLoading] = useState(false);
-  const [authRole, setAuthRole] = useState('dentist');
-  const [supabaseSession, setSupabaseSession] = useState(null);
-  const [activeClinicId, setActiveClinicId] = useState(() => DataStore.getActiveClinicId());
-  const [profile, setProfile] = useState(null);
   const [bookingLink, setBookingLink] = useState('');
 
-  const handleLogout = () => {
-    if (supabaseSession) {
-      supabase.auth
-        .signOut({ scope: 'local' })
-        .catch(() => {})
-        .finally(() => clearSupabaseAuthStorage());
-    } else {
-      clearSupabaseAuthStorage();
-    }
-    setIsLoggedIn(false);
-  };
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSupabaseSession(data.session);
-      setAuthChecked(true);
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSupabaseSession(session);
-      setAuthChecked(true);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (!supabaseSession?.user) {
-      setProfile(null);
-      setIsLoggedIn(false);
-      setProfileLoading(false);
-      return;
-    }
-    const loadProfile = async () => {
-      setProfileLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', supabaseSession.user.id)
-        .single();
-      if (error) {
-        console.error('Failed to load profile:', error);
-        setProfileLoading(false);
-        return;
-      }
-      setProfile(data);
-      setProfileLoading(false);
-    };
-    loadProfile();
-  }, [supabaseSession]);
-
-  useEffect(() => {
-    if (!profile) return;
-    const role = profile.role || 'dentist';
-    setAuthRole(role);
-    setIsLoggedIn(true);
-    if (profile.clinic_id) {
-      DataStore.setActiveClinicId(profile.clinic_id);
-      setActiveClinicId(profile.clinic_id);
-    } else {
-      DataStore.setActiveClinicId(null);
-      setActiveClinicId(null);
-    }
-  }, [profile]);
+  // Responsive Sidebar State
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const toggleSidebar = () => setSidebarOpen(prev => !prev);
+  const closeSidebar = () => setSidebarOpen(false);
 
   useEffect(() => {
     if (!activeClinicId) {
@@ -134,7 +80,7 @@ export default function App() {
     let isActive = true;
     const loadClinicSlug = async () => {
       const { data, error } = await supabase
-        .from('clinics')
+        .from('apt_clinics')
         .select('slug')
         .eq('id', activeClinicId)
         .single();
@@ -151,7 +97,7 @@ export default function App() {
     };
   }, [activeClinicId]);
 
-  const dataEnabled = Boolean(isLoggedIn && authRole !== 'admin' && activeClinicId);
+  const dataEnabled = Boolean(!!user && authRole !== 'admin' && activeClinicId);
 
   // Original single-file state wiring preserved, now split into modules.
   const {
@@ -188,15 +134,36 @@ export default function App() {
     clearAll,
     updateAppointmentRequest,
     refreshRequests,
+    setDateRange,
+    searchPatients,
+    credits,
+    creditHistory,
+    addCredits,
   } = useDataStore(activeClinicId, dataEnabled);
 
   const [view, setView] = useState('calendar');
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  // Sync date range for appointments
+  useEffect(() => {
+    if (!setDateRange) return;
+    // Fetch current month + previous + next to allow smooth navigation
+    const start = startOfMonth(subMonths(currentDate, 1));
+    const end = endOfMonth(addMonths(currentDate, 1));
+
+    setDateRange({
+      start: start.toISOString(),
+      end: end.toISOString(),
+    });
+  }, [currentDate, setDateRange]);
   const [calendarView, setCalendarView] = useState('month');
   const [showAppointmentModal, setShowAppointmentModal] = useState(false);
   const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showCreditModal, setShowCreditModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
   const [appointmentDefaults, setAppointmentDefaults] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
+  const [isRedeeming, setIsRedeeming] = useState(false);
   const bookingSlug = getBookingSlugFromPath();
 
   const viewTitle = {
@@ -212,20 +179,28 @@ export default function App() {
   const handleSaveAppointment = (data) => {
     if (data.id) {
       updateAppointment(data.id, data);
+      setShowAppointmentModal(false);
+      setAppointmentDefaults(null);
     } else {
-      addAppointment(data);
+      // Logic is now inside useDataStore.addAppointment
+      addAppointment(data)
+        .then(() => {
+          setShowAppointmentModal(false);
+          setAppointmentDefaults(null);
+        })
+        .catch((err) => {
+          addToast(err.message || "Failed to create appointment", 'error');
+        });
     }
-    setShowAppointmentModal(false);
-    setAppointmentDefaults(null);
   };
 
   const handleDeleteAppointment = (data) => {
     if (!data || !data.id) return;
-    if (window.confirm('Delete this appointment?')) {
-      deleteAppointment(data.id);
-      setShowAppointmentModal(false);
-      setAppointmentDefaults(null);
-    }
+    setConfirmDialog({
+      open: true,
+      type: 'appointment',
+      payload: data,
+    });
   };
 
   const handleSavePatient = (data) => {
@@ -242,14 +217,28 @@ export default function App() {
     if (!editingPatient) return;
     const hasAppointments = appointments.some((a) => String(a.patientId) === String(editingPatient.id));
     if (hasAppointments) {
-      alert('Cannot delete: patient has appointments');
+      addToast('Cannot delete: patient has appointments', 'warning');
       return;
     }
-    if (window.confirm('Delete this patient?')) {
-      deletePatient(editingPatient.id);
+    setConfirmDialog({
+      open: true,
+      type: 'patient',
+      payload: editingPatient,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (confirmDialog.type === 'appointment' && confirmDialog.payload?.id) {
+      deleteAppointment(confirmDialog.payload.id);
+      setShowAppointmentModal(false);
+      setAppointmentDefaults(null);
+    }
+    if (confirmDialog.type === 'patient' && confirmDialog.payload?.id) {
+      deletePatient(confirmDialog.payload.id);
       setShowPatientModal(false);
       setEditingPatient(null);
     }
+    setConfirmDialog({ open: false, type: '', payload: null });
   };
 
   const openNewAppointment = (date, startTime, dentistId) => {
@@ -278,21 +267,49 @@ export default function App() {
     return <PublicBookingView clinicSlug={bookingSlug} />;
   }
 
-  if (!authChecked || (supabaseSession?.user && profileLoading)) {
-    return null;
+  if (authLoading) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Loading your account…</h1>
+          <p className="login-subtitle">Please wait while we verify your session.</p>
+        </div>
+      </div>
+    );
   }
 
-  if (isLoggedIn && !isReady && authRole !== 'admin' && activeClinicId) {
-    return null;
+  if (authError) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Something went wrong</h1>
+          <p className="login-subtitle">{authError}</p>
+          <button className="btn btn-secondary" onClick={signOut}>
+            Logout
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  if (!isLoggedIn) {
+  if (user && !isReady && authRole !== 'admin' && activeClinicId) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <h1 className="login-title">Loading your clinic…</h1>
+          <p className="login-subtitle">We are fetching your appointments and settings.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
     return <LoginView />;
   }
 
   if (authRole === 'admin') {
     return (
-      <AdminDashboard onLogout={handleLogout} />
+      <AdminDashboard onLogout={signOut} />
     );
   }
 
@@ -302,7 +319,7 @@ export default function App() {
         <div className="login-card">
           <h1 className="login-title">Clinic access pending</h1>
           <p className="login-subtitle">An admin needs to assign you to a clinic before you can access the app.</p>
-          <button className="btn btn-secondary" onClick={handleLogout}>
+          <button className="btn btn-secondary" onClick={signOut}>
             Logout
           </button>
         </div>
@@ -314,14 +331,32 @@ export default function App() {
     <div className="app-container">
       <Sidebar
         view={view}
-        onChange={setView}
+        onChange={(newView) => {
+          setView(newView);
+          closeSidebar(); // Close sidebar on mobile when navigating
+        }}
         theme={theme}
         setTheme={setTheme}
-        onLogout={handleLogout}
+        onLogout={signOut}
         bookingLink={bookingLink}
+        isOpen={sidebarOpen}
+        onClose={closeSidebar}
       />
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={closeSidebar}
+        />
+      )}
       <main className="main-content">
-        <Header title={viewTitle} onNewAppointment={() => setShowAppointmentModal(true)} />
+        <Header
+          title={viewTitle}
+          onNewAppointment={() => setShowAppointmentModal(true)}
+          onToggleSidebar={toggleSidebar}
+          credits={credits}
+          onOpenCredits={() => setShowCreditModal(true)}
+        />
         <div className="content">
           {view === 'calendar' && (
             <CalendarView
@@ -348,6 +383,7 @@ export default function App() {
               rooms={rooms}
               treatments={treatments}
               onAppointmentSelect={handleAppointmentClick}
+              onNewAppointment={() => setShowAppointmentModal(true)}
             />
           )}
           {view === 'patients' && (
@@ -388,7 +424,7 @@ export default function App() {
               updateHoliday={updateHoliday}
               deleteHoliday={deleteHoliday}
               clearAll={clearAll}
-              onLogout={handleLogout}
+              onLogout={signOut}
               theme={theme}
               setTheme={setTheme}
             />
@@ -423,6 +459,8 @@ export default function App() {
           initialData={appointmentDefaults}
           onSave={handleSaveAppointment}
           onDelete={handleDeleteAppointment}
+          searchPatients={searchPatients}
+          credits={credits}
           onClose={() => {
             setShowAppointmentModal(false);
             setAppointmentDefaults(null);
@@ -442,6 +480,44 @@ export default function App() {
           }}
         />
       )}
+
+
+      {showCreditModal && (
+        <CreditModal
+          credits={credits}
+          history={creditHistory}
+          loading={isRedeeming}
+          onClose={() => setShowCreditModal(false)}
+          onRedeem={async (code) => {
+            setIsRedeeming(true);
+            try {
+              if (code === 'DEMO10') {
+                await addCredits(10, 'Voucher Redemption: DEMO10');
+                addToast('Start up credits added!', 'success');
+              } else {
+                await new Promise(r => setTimeout(r, 500)); // Fake delay for error too
+                addToast('Invalid code. Try DEMO10.', 'error');
+              }
+            } finally {
+              setIsRedeeming(false);
+            }
+          }}
+        />
+      )}
+
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.type === 'patient' ? 'Delete patient' : 'Delete appointment'}
+        description={
+          confirmDialog.type === 'patient'
+            ? 'This will permanently remove the patient record. This action cannot be undone.'
+            : 'This will permanently remove the appointment from the schedule.'
+        }
+        confirmLabel={confirmDialog.type === 'patient' ? 'Delete patient' : 'Delete appointment'}
+        confirmVariant="danger"
+        onClose={() => setConfirmDialog({ open: false, type: '', payload: null })}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

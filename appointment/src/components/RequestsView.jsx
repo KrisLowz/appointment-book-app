@@ -142,16 +142,18 @@ export default function RequestsView({
     <div className="requests-page">
       <div className="requests-header">
         <div>
-          <h2>Appointment Requests</h2>
+          <h2 className="request-title">Appointment Requests</h2>
           <p>Review patient submissions and approve or decline.</p>
         </div>
-        <div className="requests-filters">
+        <div className="requests-filters" role="tablist" aria-label="Request status filters">
           {['pending', 'accepted', 'declined', 'all'].map((status) => (
             <button
               key={status}
               type="button"
               className={`status-pill ${filter === status ? 'selected' : ''}`}
               onClick={() => setFilter(status)}
+              role="tab"
+              aria-selected={filter === status}
             >
               {status} ({counts[status] || 0})
             </button>
@@ -161,7 +163,15 @@ export default function RequestsView({
 
       <div className="requests-grid">
         {filteredRequests.length === 0 && (
-          <div className="empty-state">No requests found.</div>
+          <div className="empty-state">
+            <h3>No requests found</h3>
+            <p>New patient requests will appear here.</p>
+            {refreshRequests && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={refreshRequests}>
+                Refresh
+              </button>
+            )}
+          </div>
         )}
 
         {filteredRequests.map((request) => {

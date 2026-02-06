@@ -11,7 +11,7 @@ const mapClinic = (row) => ({
 
 export async function getClinics() {
   const { data, error } = await supabase
-    .from("clinics")
+    .from("apt_clinics")
     .select("*")
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -26,7 +26,7 @@ export async function addClinic(clinic) {
     status: clinic.status || null,
   };
   const { data, error } = await supabase
-    .from("clinics")
+    .from("apt_clinics")
     .insert(payload)
     .select("*")
     .single();
@@ -42,7 +42,7 @@ export async function updateClinic(id, updates) {
     ...(updates.status !== undefined ? { status: updates.status } : {}),
   };
   const { data, error } = await supabase
-    .from("clinics")
+    .from("apt_clinics")
     .update(payload)
     .eq("id", id)
     .select("*")

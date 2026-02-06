@@ -40,7 +40,8 @@ export async function getAppointmentRequests(clinicId) {
     .from("appointment_requests")
     .select("*")
     .eq("clinic_id", clinicId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(50);
   if (error) throw error;
   return (data || []).map(mapRequest);
 }

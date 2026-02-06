@@ -10,7 +10,7 @@ const mapTreatment = (row) => ({
 
 export async function getTreatments(clinicId) {
   const { data, error } = await supabase
-    .from("treatments")
+    .from("apt_treatments")
     .select("*")
     .eq("clinic_id", clinicId)
     .order("name", { ascending: true });
@@ -27,7 +27,7 @@ export async function addTreatment(clinicId, treatment) {
     supplies_needed: treatment.suppliesNeeded || [],
   };
   const { data, error } = await supabase
-    .from("treatments")
+    .from("apt_treatments")
     .insert(payload)
     .select("*")
     .single();
@@ -43,7 +43,7 @@ export async function updateTreatment(id, updates) {
     ...(updates.suppliesNeeded !== undefined ? { supplies_needed: updates.suppliesNeeded } : {}),
   };
   const { data, error } = await supabase
-    .from("treatments")
+    .from("apt_treatments")
     .update(payload)
     .eq("id", id)
     .select("*")
@@ -53,7 +53,7 @@ export async function updateTreatment(id, updates) {
 }
 
 export async function deleteTreatment(id) {
-  const { error } = await supabase.from("treatments").delete().eq("id", id);
+  const { error } = await supabase.from("apt_treatments").delete().eq("id", id);
   if (error) throw error;
   return true;
 }

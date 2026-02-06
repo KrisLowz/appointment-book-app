@@ -1,12 +1,12 @@
 import { supabase } from "../lib/supabaseClient";
 
 const mapProfile = (row) => ({
-  id: row.id,
+  id: row.user_id,
   username: row.email || "",
   email: row.email || "",
-  role: row.role || "dentist",
+  role: row.account_type === "admin" ? "admin" : "dentist",
   clinicId: row.clinic_id || "",
-  name: row.full_name || "",
+  name: row.name || "",
   status: row.status || "active",
   createdAt: row.created_at,
 });
@@ -24,7 +24,7 @@ export async function getProfileById(id) {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", id)
+    .eq("user_id", id)
     .single();
   if (error) throw error;
   return mapProfile(data);
@@ -33,15 +33,17 @@ export async function getProfileById(id) {
 export async function updateProfile(id, updates) {
   const payload = {
     ...(updates.email !== undefined ? { email: updates.email } : {}),
-    ...(updates.fullName !== undefined ? { full_name: updates.fullName } : {}),
-    ...(updates.role !== undefined ? { role: updates.role } : {}),
+    ...(updates.fullName !== undefined ? { name: updates.fullName } : {}),
+    ...(updates.role !== undefined
+      ? { account_type: updates.role === "admin" ? "admin" : "individual" }
+      : {}),
     ...(updates.clinicId !== undefined ? { clinic_id: updates.clinicId || null } : {}),
     ...(updates.status !== undefined ? { status: updates.status } : {}),
   };
   const { data, error } = await supabase
     .from("profiles")
     .update(payload)
-    .eq("id", id)
+    .eq("user_id", id)
     .select("*")
     .single();
   if (error) throw error;

@@ -13,6 +13,12 @@ export default function useDataStore(activeClinicId, enabled = true) {
   const [holidays, setHolidays] = useState([]);
   const [appointmentRequests, setAppointmentRequests] = useState([]);
   const [isReady, setIsReady] = useState(false);
+  const [dateRange, setDateRange] = useState({ start: null, end: null });
+  // MOCK CREDIT SYSTEM
+  const [credits, setCredits] = useState(5);
+  const [creditHistory, setCreditHistory] = useState([
+    { date: new Date().toISOString(), description: 'Initial Balance', amount: 5 }
+  ]);
 
   const toPromise = (value) => (value && typeof value.then === 'function' ? value : Promise.resolve(value));
 
@@ -30,11 +36,11 @@ export default function useDataStore(activeClinicId, enabled = true) {
   useEffect(() => {
     let cancelled = false;
 
-    const load = async () => {
-      setIsReady(false);
-      if (!enabled) {
-        return;
-      }
+    // Load everything EXCEPT appointments on initial load or clinic change
+    const loadStatic = async () => {
+      if (!enabled) return;
+
+      // If clinic changes, we need to reset everything
       if (activeClinicId) {
         DataStore.setActiveClinicId(activeClinicId);
       } else {
@@ -50,19 +56,9 @@ export default function useDataStore(activeClinicId, enabled = true) {
         return;
       }
 
-      const [
-        patientsData,
-        appointmentsData,
-        roomsData,
-        treatmentsData,
-        settingsData,
-        activityData,
-        staffData,
-        holidaysData,
-        requestsData,
-      ] = await Promise.all([
+      // Fetch static data
+      const results = await Promise.allSettled([
         toPromise(DataStore.getPatients()),
-        toPromise(DataStore.getAppointments()),
         toPromise(DataStore.getRooms()),
         toPromise(DataStore.getTreatments()),
         toPromise(DataStore.getSettings()),
@@ -74,26 +70,49 @@ export default function useDataStore(activeClinicId, enabled = true) {
 
       if (cancelled) return;
 
-      setPatients(patientsData || []);
-      setAppointments(appointmentsData || []);
-      setRooms(roomsData || []);
-      setTreatments(treatmentsData || []);
-      setSettings(settingsData || null);
-      setActivity(activityData || []);
-      setStaff(staffData || []);
-      setHolidays(holidaysData || []);
-      setAppointmentRequests(requestsData || []);
+      const getValue = (index, fallback) =>
+        results[index].status === 'fulfilled' ? results[index].value ?? fallback : fallback;
+
+      setPatients(getValue(0, []));
+      setRooms(getValue(1, []));
+      setTreatments(getValue(2, []));
+      setSettings(getValue(3, null));
+      setActivity(getValue(4, []));
+      setStaff(getValue(5, []));
+      setHolidays(getValue(6, []));
+      setAppointmentRequests(getValue(7, []));
       setIsReady(true);
     };
 
-    load().catch((error) => console.error('Failed to load data:', error));
+    loadStatic().catch(console.error);
 
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [activeClinicId, enabled]);
 
-  const refreshAppointments = () => handleAsync(DataStore.getAppointments(), (data) => setAppointments(data || []));
+  // Separate effect for Appointments that depends on dateRange
+  useEffect(() => {
+    let cancelled = false;
+    if (!enabled || !activeClinicId || !dateRange.start) return;
+
+    const loadAppointments = async () => {
+      try {
+        const data = await DataStore.getAppointments(activeClinicId, dateRange.start, dateRange.end);
+        if (!cancelled) setAppointments(data || []);
+      } catch (err) {
+        console.error("Failed to load appointments", err);
+      }
+    };
+
+    loadAppointments();
+    return () => { cancelled = true; };
+  }, [activeClinicId, enabled, dateRange]);
+
+  const refreshAppointments = () => {
+    handleAsync(
+      DataStore.getAppointments(activeClinicId, dateRange.start, dateRange.end),
+      (data) => setAppointments(data || [])
+    );
+  };
   const refreshPatients = () => handleAsync(DataStore.getPatients(), (data) => setPatients(data || []));
   const refreshRooms = () => handleAsync(DataStore.getRooms(), (data) => setRooms(data || []));
   const refreshTreatments = () => handleAsync(DataStore.getTreatments(), (data) => setTreatments(data || []));
@@ -237,6 +256,42 @@ export default function useDataStore(activeClinicId, enabled = true) {
       refreshRequests();
     });
 
+  // Encapsulated Appointment Creation
+  const handleAddAppointment = (appointment) => {
+    return handleAsync((async () => {
+      // 1. Credit Check (Mock Logic)
+      if (credits < 1) {
+        throw new Error("Insufficient credits. Please top up.");
+      }
+
+      // 2. Decrement (Mock Logic)
+      setCredits(c => c - 1);
+      setCreditHistory(prev => [{
+        date: new Date().toISOString(),
+        description: 'Appointment Created',
+        amount: -1
+      }, ...prev]);
+
+      // 3. Proceed with DataStore call
+      return await DataStore.addAppointment(appointment);
+    })(), () => {
+      refreshAppointments();
+      refreshActivity();
+    });
+  };
+
+  // Async Credit Top-up
+  const handleAddCredits = async (amount, description) => {
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 600));
+    setCredits(prev => prev + amount);
+    setCreditHistory(prev => [{
+      date: new Date().toISOString(),
+      description,
+      amount
+    }, ...prev]);
+  };
+
   return {
     patients,
     appointments,
@@ -248,10 +303,12 @@ export default function useDataStore(activeClinicId, enabled = true) {
     holidays,
     appointmentRequests,
     isReady,
+    dateRange,
+    setDateRange,
     addPatient,
     updatePatient,
     deletePatient,
-    addAppointment,
+    addAppointment: handleAddAppointment,
     updateAppointment,
     deleteAppointment,
     saveSettings,
@@ -270,6 +327,14 @@ export default function useDataStore(activeClinicId, enabled = true) {
     deleteHoliday,
     clearAll,
     refreshRequests,
+    searchPatients: (query) => DataStore.searchPatients(query),
+    // Mock Credits
+    credits,
+    creditHistory,
+    // Mock Credits
+    credits,
+    creditHistory,
+    addCredits: handleAddCredits,
     updateAppointmentRequest: (id, updates) =>
       handleAsync(DataStore.updateAppointmentRequest(id, updates), () => {
         refreshRequests();

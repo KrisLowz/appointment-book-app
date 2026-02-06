@@ -16,13 +16,23 @@ const mapAppointment = (row) => ({
   createdAt: row.created_at,
 });
 
-export async function getAppointments(clinicId) {
-  const { data, error } = await supabase
+export async function getAppointments(clinicId, startDate, endDate) {
+  let query = supabase
     .from("appointments")
     .select("*")
-    .eq("clinic_id", clinicId)
-    .order("date", { ascending: true })
+    .eq("clinic_id", clinicId);
+
+  if (startDate) {
+    query = query.gte("date", startDate);
+  }
+  if (endDate) {
+    query = query.lte("date", endDate);
+  }
+
+  query = query.order("date", { ascending: true })
     .order("start_time", { ascending: true });
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data || []).map(mapAppointment);
 }

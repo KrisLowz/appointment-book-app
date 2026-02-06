@@ -5,16 +5,20 @@ import { updateStaff as updateStaffRecord } from '../data/datastore.supabase.sta
 import { updateRoom as updateRoomRecord } from '../data/datastore.supabase.rooms';
 import { updateTreatment as updateTreatmentRecord } from '../data/datastore.supabase.treatments';
 import Modal from './Modal';
+import ConfirmDialog from './ConfirmDialog';
 import { todayISO } from '../utils/date';
+import { useToast } from '../context/ToastProvider';
 
 const planOptions = ['Starter', 'Growth', 'Pro', 'Enterprise'];
 const statusOptions = ['active', 'trial', 'paused'];
 const ADMIN_TAB_KEY = 'appointmentApp_adminTab';
 
 export default function AdminDashboard({ onLogout }) {
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState(() => localStorage.getItem(ADMIN_TAB_KEY) || 'overview');
   const [clinics, setClinics] = useState([]);
   const [users, setUsers] = useState([]);
+  // ... (rest of simple state)
   const [adminActivity, setAdminActivity] = useState([]);
   const [clinicDetails, setClinicDetails] = useState({});
   const [loading, setLoading] = useState(true);
@@ -25,12 +29,16 @@ export default function AdminDashboard({ onLogout }) {
   const [modalState, setModalState] = useState({ type: null, mode: 'new' });
   const [clinicForm, setClinicForm] = useState({ id: '', name: '', city: '', plan: 'Starter', status: 'active' });
   const [userForm, setUserForm] = useState({ id: '', username: '', password: '', role: 'dentist', clinicId: '', name: '', status: 'active' });
+  const [userLoading, setUserLoading] = useState(false);
   const [detailModal, setDetailModal] = useState({ open: false, clinicId: '', type: '' });
   const [detailForm, setDetailForm] = useState({});
   const [detailSaving, setDetailSaving] = useState(false);
   const [detailError, setDetailError] = useState('');
+  const [userSuccessMessage, setUserSuccessMessage] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState({ open: false, type: '', payload: null });
 
   const refresh = async () => {
+    // ... refresh logic ...
     setLoading(true);
     setError('');
     try {
@@ -40,7 +48,7 @@ export default function AdminDashboard({ onLogout }) {
         DataStore.getAdminActivity(),
       ]);
       setClinics(clinicsData || []);
-      setUsers(usersData || []);
+      setUsers((usersData || []).filter(u => u.status !== 'inactive'));
       setAdminActivity(adminActivityData || []);
 
       const detailsEntries = await Promise.all(
@@ -113,6 +121,7 @@ export default function AdminDashboard({ onLogout }) {
     return base;
   }, [clinicSummaries, clinics.length, users.length]);
 
+  // ... (appointmentTrend chart logic skipped for brevity if unchanged logic is compatible with replacement) ...
   const appointmentTrend = useMemo(() => {
     const months = [];
     const now = new Date();
@@ -136,6 +145,7 @@ export default function AdminDashboard({ onLogout }) {
     return months;
   }, [clinicDetails]);
 
+
   const openClinicModal = (clinic) => {
     if (clinic) {
       setClinicForm({
@@ -153,6 +163,7 @@ export default function AdminDashboard({ onLogout }) {
   };
 
   const openUserModal = (user) => {
+    setUserSuccessMessage('');
     if (user) {
       setUserForm({
         id: user.id,
@@ -166,7 +177,7 @@ export default function AdminDashboard({ onLogout }) {
       setModalState({ type: 'user', mode: 'edit' });
       return;
     }
-    setUserForm({ id: '', username: '', password: '', role: 'dentist', clinicId: clinics[0]?.id || '', name: '', status: 'active' });
+    setUserForm({ id: '', username: '', password: '', role: 'dentist', clinicId: '', name: '', status: 'active' });
     setModalState({ type: 'user', mode: 'new' });
   };
 
@@ -187,57 +198,31 @@ export default function AdminDashboard({ onLogout }) {
   const getDetailItems = () => {
     const detail = clinicDetails[detailModal.clinicId] || {};
     switch (detailModal.type) {
-      case 'patients':
-        return detail.patients || [];
-      case 'staff':
-        return detail.staff || [];
-      case 'rooms':
-        return detail.rooms || [];
-      case 'treatments':
-        return detail.treatments || [];
-      default:
-        return [];
+      case 'patients': return detail.patients || [];
+      case 'staff': return detail.staff || [];
+      case 'rooms': return detail.rooms || [];
+      case 'treatments': return detail.treatments || [];
+      default: return [];
     }
   };
 
   const startEdit = (item) => {
+    // ... logic ...
     if (!item) return;
     switch (detailModal.type) {
       case 'patients':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          phone: item.phone || '',
-          email: item.email || '',
-          address: item.address || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', phone: item.phone || '', email: item.email || '', address: item.address || '' });
         break;
       case 'staff':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          role: item.role || 'dentist',
-          phone: item.phone || '',
-          specialty: item.specialty || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', role: item.role || 'dentist', phone: item.phone || '', specialty: item.specialty || '' });
         break;
       case 'rooms':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          color: item.color || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', color: item.color || '' });
         break;
       case 'treatments':
-        setDetailForm({
-          id: item.id,
-          name: item.name || '',
-          duration: item.duration || 0,
-          color: item.color || '',
-        });
+        setDetailForm({ id: item.id, name: item.name || '', duration: item.duration || 0, color: item.color || '' });
         break;
-      default:
-        setDetailForm({});
+      default: setDetailForm({});
     }
   };
 
@@ -247,26 +232,14 @@ export default function AdminDashboard({ onLogout }) {
     setDetailError('');
     try {
       switch (detailModal.type) {
-        case 'patients':
-          await updatePatientRecord(detailForm.id, detailForm);
-          break;
-        case 'staff':
-          await updateStaffRecord(detailForm.id, detailForm);
-          break;
-        case 'rooms':
-          await updateRoomRecord(detailForm.id, detailForm);
-          break;
-        case 'treatments':
-          await updateTreatmentRecord(detailForm.id, {
-            ...detailForm,
-            duration: Number(detailForm.duration) || 0,
-          });
-          break;
-        default:
-          break;
+        case 'patients': await updatePatientRecord(detailForm.id, detailForm); break;
+        case 'staff': await updateStaffRecord(detailForm.id, detailForm); break;
+        case 'rooms': await updateRoomRecord(detailForm.id, detailForm); break;
+        case 'treatments': await updateTreatmentRecord(detailForm.id, { ...detailForm, duration: Number(detailForm.duration) || 0 }); break;
       }
       await refresh();
       setDetailForm({});
+      addToast('Record updated', 'success');
     } catch (err) {
       setDetailError(err.message || 'Failed to save changes.');
       console.error(err);
@@ -277,509 +250,559 @@ export default function AdminDashboard({ onLogout }) {
 
   const handleClinicSubmit = async () => {
     if (!clinicForm.name.trim()) {
-      alert('Enter clinic name');
+      addToast('Enter clinic name', 'error');
       return;
     }
     try {
       if (clinicForm.id) {
         await DataStore.updateClinic(clinicForm.id, clinicForm);
+        addToast('Clinic updated', 'success');
       } else {
         await DataStore.addClinic(clinicForm);
+        addToast('Clinic created', 'success');
       }
       await refresh();
       closeModal();
     } catch (err) {
-      alert('Failed to save clinic');
+      addToast('Failed to save clinic', 'error');
       console.error(err);
     }
   };
 
   const handleUserSubmit = async () => {
     if (!userForm.username.trim()) {
-      alert('Enter email');
+      addToast('Enter email', 'error');
       return;
     }
     if (!DataStore.canCreateUsers && !userForm.id) {
-      alert('Create users in Supabase Auth, then assign role/clinic here.');
+      addToast('Create users in Supabase Auth, then assign role/clinic here.', 'info');
       return;
     }
-    if (DataStore.canCreateUsers && !userForm.password.trim()) {
-      alert('Enter password');
+    if (DataStore.canCreateUsers && !userForm.password.trim() && !userForm.id) {
+      addToast('Enter password', 'error');
       return;
     }
-    if (userForm.role === 'dentist' && !userForm.clinicId) {
-      alert('Assign a clinic for dentist account');
-      return;
-    }
+
+    setUserLoading(true);
     try {
       if (userForm.id) {
         await DataStore.updateUser(userForm.id, userForm);
+        setUserSuccessMessage('User updated successfully.');
+        addToast('User updated successfully.', 'success');
       } else {
-        await DataStore.addUser(userForm);
+        const created = await DataStore.addUser(userForm);
+        if (created?.id) {
+          await DataStore.updateUser(created.id, {
+            clinicId: userForm.clinicId,
+            role: userForm.role,
+            name: userForm.name,
+            status: userForm.status
+          });
+          // ... update state ...
+          setUsers((prev) => [
+            {
+              id: created.id,
+              username: created.email,
+              email: created.email,
+              role: userForm.role || 'dentist',
+              clinicId: userForm.clinicId || '',
+              name: created.name || userForm.name || '',
+              status: created.status || 'pending',
+            },
+            ...prev,
+          ]);
+        }
+        setUserSuccessMessage('User created successfully.');
+        addToast('User created successfully.', 'success');
       }
       await refresh();
-      closeModal();
+      setTimeout(() => {
+        closeModal();
+        setUserLoading(false);
+      }, 1500);
+
     } catch (err) {
-      alert(err.message || 'Failed to save user');
+      addToast(err.message || 'Failed to save user', 'error');
       console.error(err);
+      setUserLoading(false);
     }
   };
 
   const handleDelete = async () => {
     if (modalState.type === 'clinic' && clinicForm.id) {
-      if (window.confirm('Delete this clinic?')) {
-        await DataStore.deleteClinic(clinicForm.id);
-        await refresh();
-      }
+      setConfirmDialog({
+        open: true,
+        type: 'clinic',
+        payload: { id: clinicForm.id, name: clinicForm.name },
+      });
     }
     if (modalState.type === 'user' && userForm.id) {
-      if (window.confirm('Delete this user?')) {
-        await DataStore.deleteUser(userForm.id);
-        await refresh();
-      }
+      setConfirmDialog({
+        open: true,
+        type: 'user',
+        payload: { id: userForm.id, name: userForm.name || userForm.username },
+      });
     }
-    closeModal();
   };
 
+  const handleConfirmDelete = async () => {
+    if (confirmDialog.type === 'clinic' && confirmDialog.payload?.id) {
+      await DataStore.deleteClinic(confirmDialog.payload.id);
+    }
+    if (confirmDialog.type === 'user' && confirmDialog.payload?.id) {
+      await DataStore.deleteUser(confirmDialog.payload.id);
+    }
+    await refresh();
+    closeModal();
+    setConfirmDialog({ open: false, type: '', payload: null });
+  };
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // ... existing code ...
+
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <div>
-          <div className="admin-title">Admin Dashboard</div>
-          <div className="admin-subtitle">Multi-clinic management and audit overview</div>
-        </div>
-        <button className="btn btn-secondary" onClick={onLogout}>
-          Logout
-        </button>
-      </div>
+    <div className="admin-shell">
+      {/* Mobile Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
-      {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
-      {loading && <div className="empty-state">Loading admin data...</div>}
-
-      <div className="admin-tabs">
-        {[
-          { id: 'overview', label: 'Overview' },
-          { id: 'clinics', label: 'Clinics' },
-          { id: 'users', label: 'Users' },
-          { id: 'activity', label: 'History' }
-        ].map((tab) => (
+      <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <div className="admin-sidebar-header-mobile">
+          <div className="admin-brand">
+            <div className="admin-brand-mark">AB</div>
+            <div className="admin-brand-title">Admin</div>
+          </div>
           <button
-            key={tab.id}
-            className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
+            className="btn btn-icon sidebar-close-btn"
+            onClick={() => setSidebarOpen(false)}
           >
-            {tab.label}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
-        ))}
-      </div>
+        </div>
 
-      {activeTab === 'overview' && (
-        <div className="admin-section">
-          <div className="admin-grid">
-            <div className="admin-card">
-              <div className="admin-card-label">Clinics</div>
-              <div className="admin-card-value">{totals.clinics}</div>
-              <div className="admin-card-meta">Active accounts</div>
-            </div>
-            <div className="admin-card">
-              <div className="admin-card-label">Users</div>
-              <div className="admin-card-value">{totals.users}</div>
-              <div className="admin-card-meta">All roles</div>
-            </div>
-            <div className="admin-card">
-              <div className="admin-card-label">Patients</div>
-              <div className="admin-card-value">{totals.patients}</div>
-              <div className="admin-card-meta">Across clinics</div>
-            </div>
-            <div className="admin-card">
-              <div className="admin-card-label">Appointments</div>
-              <div className="admin-card-value">{totals.appointments}</div>
-              <div className="admin-card-meta">All statuses</div>
-            </div>
-            <div className="admin-card">
-              <div className="admin-card-label">Staff</div>
-              <div className="admin-card-value">{totals.staff}</div>
-              <div className="admin-card-meta">Dentists + Nurses</div>
+        {/* Desktop Brand (hidden on mobile header inside sidebar if specific styles used, generally ok to keep) */}
+        <div className="admin-brand desktop-only">
+          <div className="admin-brand-mark">AB</div>
+          <div>
+            <div className="admin-brand-title">Admin</div>
+            <div className="admin-brand-subtitle">Clinic Ops</div>
+          </div>
+        </div>
+
+        <div className="admin-nav-label">Navigation</div>
+        <nav className="admin-nav" role="tablist" aria-label="Admin sections">
+          {[
+            { id: 'overview', label: 'Overview' },
+            { id: 'clinics', label: 'Clinics' },
+            { id: 'users', label: 'Users' },
+            { id: 'activity', label: 'History' }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              className={`admin-nav-item ${activeTab === tab.id ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setSidebarOpen(false);
+              }}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+            >
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="admin-sidebar-footer">
+          <button className="btn btn-secondary" onClick={onLogout}>
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      <main className="admin-main">
+        <header className="admin-topbar">
+          <div className="admin-topbar-left">
+            <button
+              className="btn btn-icon mobile-menu-btn"
+              onClick={() => setSidebarOpen(true)}
+              style={{ marginRight: 12 }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <div>
+              <div className="admin-title">Admin Dashboard</div>
+              <div className="admin-subtitle">Multi-clinic management</div>
             </div>
           </div>
+          <div className="admin-topbar-right">
+            <button className="btn btn-secondary btn-sm" onClick={refresh}>
+              Refresh
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => openClinicModal()}>
+              New Clinic
+            </button>
+            <button
+              className="btn btn-primary btn-sm"
+              onClick={() => openUserModal()}
+              disabled={!DataStore.canCreateUsers}
+              title={DataStore.canCreateUsers ? 'Create user' : 'Enable VITE_ENABLE_ADMIN_CREATE_USERS'}
+            >
+              New User
+            </button>
+            {/* <div className="admin-status-pill">
+              {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
+            </div> */}
+          </div>
+        </header>
 
-          <div className="admin-panel" style={{ marginTop: 16 }}>
-            <div className="admin-panel-title">Appointments Trend (Last 6 Months)</div>
-            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', height: 160, paddingTop: 8 }}>
-              {appointmentTrend.map((m) => {
-                const max = Math.max(...appointmentTrend.map((x) => x.count), 1);
-                const height = Math.max(8, Math.round((m.count / max) * 120));
-                return (
-                  <div key={m.key} style={{ flex: 1, textAlign: 'center' }}>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>{m.count}</div>
-                    <div
-                      style={{
-                        height,
-                        background: 'linear-gradient(180deg, #2F8C7B 0%, #2452A0 100%)',
-                        borderRadius: 8,
-                      }}
-                      title={`${m.label}: ${m.count}`}
-                    ></div>
-                    <div style={{ marginTop: 6, fontSize: 12 }}>{m.label}</div>
-                  </div>
-                );
-              })}
+        {error && <div className="form-error" style={{ marginBottom: 12 }}>{error}</div>}
+        {loading && (
+          <div className="admin-loading">
+            <div className="skeleton skeleton-line" style={{ width: '220px', height: 16 }}></div>
+            <div className="admin-loading-grid">
+              <div className="skeleton skeleton-card"></div>
+              <div className="skeleton skeleton-card"></div>
+              <div className="skeleton skeleton-card"></div>
+              <div className="skeleton skeleton-card"></div>
             </div>
           </div>
+        )}
 
-          <div className="admin-panel">
-            <div className="admin-panel-title">Clinic Snapshot</div>
-            {clinicSummaries.map((clinic) => (
-              <div key={clinic.id} className="admin-row">
+        {activeTab === 'overview' && (
+          <div className="admin-layout">
+            <section className="admin-section">
+              <div className="admin-section-header">
                 <div>
-                  <div className="admin-row-title">{clinic.name}</div>
-                  <div className="admin-row-sub">{clinic.city} · {clinic.plan} · {clinic.status}</div>
-                </div>
-                <div className="admin-row-metrics">
-                  <span>{clinic.stats.patients} patients</span>
-                  <span>{clinic.stats.appointments} appts</span>
-                  <span>{clinic.stats.staff} staff</span>
+                  <div className="admin-section-title">Clinic Overview</div>
+                  <div className="admin-section-subtitle">At-a-glance operational totals</div>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'clinics' && (
-        <div className="admin-section">
-          <div className="admin-panel">
-            <div className="admin-panel-header">
-              <div className="admin-panel-title">Clinic Accounts</div>
-              <button className="btn btn-primary btn-sm" onClick={() => openClinicModal()}>
-                + Add Clinic
-              </button>
-            </div>
-            <div className="admin-list">
-              {clinicSummaries.map((clinic) => (
-                <div key={clinic.id} className="admin-list-item admin-list-item-column">
-                  <div className="admin-list-top">
-                    <div>
-                      <div className="admin-row-title">{clinic.name}</div>
-                      <div className="admin-row-sub">{clinic.city} · {clinic.plan} · {clinic.status}</div>
-                      <div className="admin-list-meta">
-                        <span>{clinic.stats.patients} patients</span>
-                        <span>{clinic.stats.appointments} appointments</span>
-                        <span>{clinic.stats.staff} staff</span>
-                        <span>{clinic.stats.rooms} rooms</span>
-                      </div>
-                    </div>
-                    <div className="admin-list-actions">
-                      <button className="btn btn-secondary btn-sm" onClick={() => openClinicModal(clinic)}>
-                        Manage
-                      </button>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setExpandedClinicId(expandedClinicId === clinic.id ? '' : clinic.id)}
-                      >
-                        {expandedClinicId === clinic.id ? 'Hide Details' : 'View Details'}
-                      </button>
-                    </div>
-                  </div>
-                  {expandedClinicId === clinic.id && (
-                    <div className="admin-clinic-details">
-                      <div className="admin-detail-section">
-                        <div className="admin-detail-title">Clinic Overview</div>
-                        <div className="admin-grid">
-                          <button
-                            type="button"
-                            className="admin-card admin-card-clickable"
-                            onClick={() => openDetailModal(clinic.id, 'patients')}
-                          >
-                            <div className="admin-card-label">Patients</div>
-                            <div className="admin-card-value">{clinic.stats.patients}</div>
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-card admin-card-clickable"
-                            onClick={() => openDetailModal(clinic.id, 'appointments')}
-                          >
-                            <div className="admin-card-label">Appointments</div>
-                            <div className="admin-card-value">{clinic.stats.appointments}</div>
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-card admin-card-clickable"
-                            onClick={() => openDetailModal(clinic.id, 'staff')}
-                          >
-                            <div className="admin-card-label">Staff</div>
-                            <div className="admin-card-value">{clinic.stats.staff}</div>
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-card admin-card-clickable"
-                            onClick={() => openDetailModal(clinic.id, 'rooms')}
-                          >
-                            <div className="admin-card-label">Rooms</div>
-                            <div className="admin-card-value">{clinic.stats.rooms}</div>
-                          </button>
-                          <button
-                            type="button"
-                            className="admin-card admin-card-clickable"
-                            onClick={() => openDetailModal(clinic.id, 'treatments')}
-                          >
-                            <div className="admin-card-label">Treatments</div>
-                            <div className="admin-card-value">{clinic.stats.treatments}</div>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="admin-detail-section">
-                        <div className="admin-detail-title">Appointment Status</div>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                          {['confirmed', 'pending', 'completed', 'cancelled', 'no-show'].map((status) => {
-                            const count = (clinicDetails[clinic.id]?.appointments || []).filter((a) => (a.status || 'confirmed') === status).length;
-                            return (
-                              <div key={status} className="admin-card" style={{ minWidth: 120 }}>
-                                <div className="admin-card-label">{status.replace('-', ' ')}</div>
-                                <div className="admin-card-value">{count}</div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="admin-detail-section">
-                        <div className="admin-detail-title">Appointments (Grouped by Month)</div>
-                        {(() => {
-                          const detail = clinicDetails[clinic.id] || {};
-                          const treatmentsById = Object.fromEntries((detail.treatments || []).map((t) => [t.id, t.name]));
-                          const patientsById = Object.fromEntries((detail.patients || []).map((p) => [p.id, p.name]));
-                          const staffById = Object.fromEntries((detail.staff || []).map((s) => [s.id, s.name]));
-                          const statusFilter = appointmentFilter.status;
-                          const query = appointmentFilter.query.trim().toLowerCase();
-
-                          const appointments = (detail.appointments || [])
-                            .filter((apt) => (statusFilter === 'all' ? true : (apt.status || 'confirmed') === statusFilter))
-                            .filter((apt) => {
-                              if (!query) return true;
-                              const treatmentName = (treatmentsById[apt.treatmentId] || '').toLowerCase();
-                              const patientName = (patientsById[apt.patientId] || '').toLowerCase();
-                              const dentistName = (staffById[apt.dentistId] || '').toLowerCase();
-                              return (
-                                treatmentName.includes(query) ||
-                                patientName.includes(query) ||
-                                dentistName.includes(query) ||
-                                (apt.date || '').includes(query)
-                              );
-                            })
-                            .slice()
-                            .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
-
-                          const groups = appointments.reduce((acc, apt) => {
-                            const key = apt.date ? apt.date.slice(0, 7) : 'Unknown';
-                            if (!acc[key]) acc[key] = [];
-                            acc[key].push(apt);
-                            return acc;
-                          }, {});
-
-                          const groupKeys = Object.keys(groups).sort();
-                          return (
-                            <div>
-                              <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-                                <select
-                                  className="form-select"
-                                  value={appointmentFilter.status}
-                                  onChange={(e) => setAppointmentFilter((prev) => ({ ...prev, status: e.target.value }))}
-                                  style={{ maxWidth: 180 }}
-                                >
-                                  <option value="all">All statuses</option>
-                                  <option value="confirmed">Confirmed</option>
-                                  <option value="pending">Pending</option>
-                                  <option value="completed">Completed</option>
-                                  <option value="cancelled">Cancelled</option>
-                                  <option value="no-show">No Show</option>
-                                </select>
-                                <input
-                                  className="form-input"
-                                  placeholder="Filter by patient, dentist, treatment..."
-                                  value={appointmentFilter.query}
-                                  onChange={(e) => setAppointmentFilter((prev) => ({ ...prev, query: e.target.value }))}
-                                  style={{ minWidth: 240 }}
-                                />
-                              </div>
-
-                              {!appointments.length && (
-                                <div className="empty-state">No appointments match the filter</div>
-                              )}
-
-                              {groupKeys.map((monthKey) => {
-                                const isOpen = expandedAppointmentMonths[`${clinic.id}-${monthKey}`];
-                                const monthLabel = new Date(`${monthKey}-01`).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                                const monthAppointments = groups[monthKey];
-
-                                return (
-                                  <div key={monthKey} style={{ marginBottom: 12 }}>
-                                    <button
-                                      type="button"
-                                      className="btn btn-ghost btn-sm"
-                                      onClick={() =>
-                                        setExpandedAppointmentMonths((prev) => ({
-                                          ...prev,
-                                          [`${clinic.id}-${monthKey}`]: !isOpen,
-                                        }))
-                                      }
-                                      style={{ marginBottom: 8 }}
-                                    >
-                                      {isOpen ? '▾' : '▸'} {monthLabel} ({monthAppointments.length})
-                                    </button>
-                                    {isOpen && (
-                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-                                        {monthAppointments.map((apt) => {
-                                          const treatmentName = treatmentsById[apt.treatmentId] || 'Treatment';
-                                          const patientName = patientsById[apt.patientId] || 'Patient';
-                                          const dentistName = staffById[apt.dentistId] || 'Dentist';
-                                          const status = apt.status || 'confirmed';
-                                          return (
-                                            <div
-                                              key={apt.id}
-                                              style={{
-                                                background: 'var(--bg-card)',
-                                                border: '1px solid var(--border-light)',
-                                                borderRadius: 12,
-                                                padding: 12,
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: 6,
-                                              }}
-                                            >
-                                              <div style={{ fontWeight: 600 }}>{apt.date} {apt.startTime}</div>
-                                              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>{patientName}</div>
-                                              <div style={{ fontSize: 14 }}>{treatmentName}</div>
-                                              <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>{dentistName}</div>
-                                              <div style={{ marginTop: 6, fontSize: 12 }}>
-                                                <span
-                                                  style={{
-                                                    display: 'inline-block',
-                                                    padding: '3px 8px',
-                                                    borderRadius: 999,
-                                                    background: 'var(--bg-secondary)',
-                                                    color: 'var(--text-muted)',
-                                                    textTransform: 'capitalize',
-                                                  }}
-                                                >
-                                                  {status}
-                                                </span>
-                                              </div>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          );
-                        })()}
-                      </div>
-
-                      <div className="admin-detail-section">
-                        <div className="admin-detail-title">Recent Activity</div>
-                        <div className="admin-detail-list">
-                          {(clinicDetails[clinic.id]?.activity || []).slice(0, 6).map((log) => (
-                            <div key={log.id} className="admin-detail-row">
-                              <span>{log.description}</span>
-                              <span>{new Date(log.timestamp).toLocaleString()}</span>
-                              <span>{log.type.replace('_', ' ')}</span>
-                            </div>
-                          ))}
-                          {(clinicDetails[clinic.id]?.activity || []).length === 0 && (
-                            <div className="empty-state">No activity yet</div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="admin-detail-section">
-                        <div className="admin-detail-title">Clinic Settings</div>
-                        <div className="admin-detail-grid">
-                          <div><strong>Clinic Name:</strong> {clinicDetails[clinic.id]?.settings?.clinicName || 'Dental Clinic'}</div>
-                          <div><strong>Working Hours:</strong> {clinicDetails[clinic.id]?.settings?.workingHours?.start || '09:00'} - {clinicDetails[clinic.id]?.settings?.workingHours?.end || '18:00'}</div>
-                          <div><strong>Slot Duration:</strong> {clinicDetails[clinic.id]?.settings?.slotDuration || 30} mins</div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+              <div className="admin-metrics">
+                <div className="admin-card">
+                  <div className="admin-card-label">Clinics</div>
+                  <div className="admin-card-value">{totals.clinics}</div>
+                  <div className="admin-card-meta">Active accounts</div>
                 </div>
-              ))}
-              {clinicSummaries.length === 0 && <div className="empty-state">No clinics yet</div>}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <div className="admin-section">
-          <div className="admin-panel">
-            <div className="admin-panel-header">
-              <div className="admin-panel-title">User Accounts</div>
-              {DataStore.canCreateUsers && (
-                <button className="btn btn-primary btn-sm" onClick={() => openUserModal()}>
-                  + Add User
-                </button>
-              )}
-            </div>
-            {!DataStore.canCreateUsers && (
-              <div className="form-hint" style={{ marginBottom: 12 }}>
-                Create users in Supabase Auth, then assign role/clinic here.
+                <div className="admin-card">
+                  <div className="admin-card-label">Users</div>
+                  <div className="admin-card-value">{totals.users}</div>
+                  <div className="admin-card-meta">All roles</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Patients</div>
+                  <div className="admin-card-value">{totals.patients}</div>
+                  <div className="admin-card-meta">Across clinics</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Appointments</div>
+                  <div className="admin-card-value">{totals.appointments}</div>
+                  <div className="admin-card-meta">All statuses</div>
+                </div>
+                <div className="admin-card">
+                  <div className="admin-card-label">Staff</div>
+                  <div className="admin-card-value">{totals.staff}</div>
+                  <div className="admin-card-meta">Dentists + Nurses</div>
+                </div>
               </div>
-            )}
-            <div className="admin-list">
-              {users.map((user) => (
-                <div key={user.id} className="admin-list-item">
-                  <div>
-                    <div className="admin-row-title">{user.username || user.email || 'Unknown user'}</div>
-                    <div className="admin-row-sub">
-                      {user.role}{' '}
-                      {user.clinicId
-                        ? `- ${clinics.find((c) => c.id === user.clinicId)?.name || 'Clinic'}`
-                        : '- Unassigned'}
-                    </div>
-                    <div className="admin-list-meta">
-                      <span>{user.name || 'Unnamed'}</span>
-                      <span>{user.status || 'active'}</span>
-                    </div>
+            </section>
+
+            <section className="admin-spotlight">
+              <div className="admin-spotlight-column">
+                <div className="admin-panel">
+                  <div className="admin-panel-title">Appointments Trend (Last 6 Months)</div>
+                  <div className="admin-chart">
+                    {appointmentTrend.map((m) => {
+                      const max = Math.max(...appointmentTrend.map((x) => x.count), 1);
+                      const height = Math.max(8, Math.round((m.count / max) * 120));
+                      return (
+                        <div key={m.key} className="admin-chart-bar">
+                          <div className="admin-chart-count">{m.count}</div>
+                          <div
+                            className="admin-chart-fill"
+                            style={{ height }}
+                            title={`${m.label}: ${m.count}`}
+                          ></div>
+                          <div className="admin-chart-label">{m.label}</div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="admin-list-actions">
-                    {!user.clinicId && (
-                      <button className="btn btn-primary btn-sm" onClick={() => openUserModal(user)}>
-                        Assign Clinic
-                      </button>
-                    )}
-                    <button className="btn btn-secondary btn-sm" onClick={() => openUserModal(user)}>
-                      Manage
+                </div>
+
+                <div className="admin-panel">
+                  <div className="admin-panel-title">Clinic Snapshot</div>
+                  <div className="admin-snapshot-list">
+                    {clinicSummaries.map((clinic) => (
+                      <div key={clinic.id} className="admin-row">
+                        <div>
+                          <div className="admin-row-title">{clinic.name}</div>
+                          <div className="admin-row-sub">{clinic.city} - {clinic.plan} - {clinic.status}</div>
+                        </div>
+                        <div className="admin-row-metrics">
+                          <span>{clinic.stats.patients} patients</span>
+                          <span>{clinic.stats.appointments} appts</span>
+                          <span>{clinic.stats.staff} staff</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="admin-spotlight-column">
+                <div className="admin-panel admin-quick-actions">
+                  <div className="admin-panel-title">Quick Actions</div>
+                  <div className="admin-action-grid">
+                    <button type="button" className="admin-action-card" onClick={() => openClinicModal()}>
+                      <span>+ Add Clinic</span>
+                      <small>Create a new clinic workspace</small>
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-action-card"
+                      onClick={() => openUserModal()}
+                      disabled={!DataStore.canCreateUsers}
+                    >
+                      <span>+ Add User</span>
+                      <small>Register a user account</small>
+                    </button>
+                    <button type="button" className="admin-action-card" onClick={() => setActiveTab('users')}>
+                      <span>Manage Users</span>
+                      <small>Assign roles and clinics</small>
                     </button>
                   </div>
                 </div>
-              ))}
-              {users.length === 0 && <div className="empty-state">No users yet</div>}
-            </div>
-          </div>
-        </div>
-      )}
 
-      {activeTab === 'activity' && (
-        <div className="admin-section">
-          <div className="admin-panel">
-            <div className="admin-panel-title">Admin History</div>
-            {adminActivity.length === 0 && <div className="empty-state">No activity logged</div>}
-            {adminActivity.map((log) => (
-              <div key={log.id} className="admin-row">
-                <div>
-                  <div className="admin-row-title">{log.description}</div>
-                  <div className="admin-row-sub">{new Date(log.timestamp).toLocaleString()}</div>
+                <div className="admin-panel admin-activity-panel">
+                  <div className="admin-panel-title">Recent Admin Activity</div>
+                  <div className="admin-activity-list">
+                    {adminActivity.slice(0, 6).map((log) => (
+                      <div key={log.id} className="admin-activity-item">
+                        <div className="admin-activity-title">{log.description}</div>
+                        <div className="admin-activity-meta">
+                          <span>{new Date(log.timestamp).toLocaleString()}</span>
+                          <span>{log.type.replace('_', ' ')}</span>
+                        </div>
+                      </div>
+                    ))}
+                    {adminActivity.length === 0 && (
+                      <div className="empty-state">No activity logged</div>
+                    )}
+                  </div>
                 </div>
-                <span className="admin-tag">{log.type.replace('_', ' ')}</span>
               </div>
-            ))}
+            </section>
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === 'clinics' && (
+          <div className="admin-layout">
+            <section className="admin-panel admin-wide">
+              <div className="admin-panel-header">
+                <div className="admin-panel-title">Clinic Accounts</div>
+                {/* <button className="btn btn-primary btn-sm" onClick={() => openClinicModal()}>
+                  + Add Clinic
+                </button> */}
+              </div>
+              <div className="admin-list">
+                {clinicSummaries.map((clinic) => (
+                  <div key={clinic.id} className="admin-list-item admin-list-item-column">
+                    <div className="admin-list-top">
+                      <div>
+                        <div className="admin-row-title">{clinic.name}</div>
+                        <div className="admin-row-sub">{clinic.city} - {clinic.plan} - {clinic.status}</div>
+                        <div className="admin-list-meta">
+                          <span>{clinic.stats.patients} patients</span>
+                          <span>{clinic.stats.appointments} appointments</span>
+                          <span>{clinic.stats.staff} staff</span>
+                          <span>{clinic.stats.rooms} rooms</span>
+                        </div>
+                      </div>
+                      <div className="admin-list-actions">
+                        <button className="btn btn-secondary btn-sm" onClick={() => openClinicModal(clinic)}>
+                          Manage
+                        </button>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setExpandedClinicId(expandedClinicId === clinic.id ? '' : clinic.id)}
+                        >
+                          {expandedClinicId === clinic.id ? 'Hide Details' : 'View Details'}
+                        </button>
+                      </div>
+                    </div>
+                    {expandedClinicId === clinic.id && (
+                      <div className="admin-clinic-details">
+                        <div className="admin-detail-section">
+                          <div className="admin-detail-title">Clinic Overview</div>
+                          <div className="admin-grid">
+                            <button
+                              type="button"
+                              className="admin-card admin-card-clickable"
+                              onClick={() => openDetailModal(clinic.id, 'patients')}
+                            >
+                              <div className="admin-card-label">Patients</div>
+                              <div className="admin-card-value">{clinic.stats.patients}</div>
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-card admin-card-clickable"
+                              onClick={() => openDetailModal(clinic.id, 'appointments')}
+                            >
+                              <div className="admin-card-label">Appointments</div>
+                              <div className="admin-card-value">{clinic.stats.appointments}</div>
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-card admin-card-clickable"
+                              onClick={() => openDetailModal(clinic.id, 'staff')}
+                            >
+                              <div className="admin-card-label">Staff</div>
+                              <div className="admin-card-value">{clinic.stats.staff}</div>
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-card admin-card-clickable"
+                              onClick={() => openDetailModal(clinic.id, 'rooms')}
+                            >
+                              <div className="admin-card-label">Rooms</div>
+                              <div className="admin-card-value">{clinic.stats.rooms}</div>
+                            </button>
+                            <button
+                              type="button"
+                              className="admin-card admin-card-clickable"
+                              onClick={() => openDetailModal(clinic.id, 'treatments')}
+                            >
+                              <div className="admin-card-label">Treatments</div>
+                              <div className="admin-card-value">{clinic.stats.treatments}</div>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="admin-detail-section">
+                          <div className="admin-detail-title">Recent Activity</div>
+                          <div className="admin-detail-list">
+                            {(clinicDetails[clinic.id]?.activity || []).slice(0, 6).map((log) => (
+                              <div key={log.id} className="admin-detail-row">
+                                <span>{log.description}</span>
+                                <span>{new Date(log.timestamp).toLocaleString()}</span>
+                                <span>{log.type.replace('_', ' ')}</span>
+                              </div>
+                            ))}
+                            {(clinicDetails[clinic.id]?.activity || []).length === 0 && (
+                              <div className="empty-state">No activity yet</div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="admin-detail-section">
+                          <div className="admin-detail-title">Clinic Settings</div>
+                          <div className="admin-detail-grid">
+                            <div><strong>Clinic Name:</strong> {clinicDetails[clinic.id]?.settings?.clinicName || 'Dental Clinic'}</div>
+                            <div><strong>Working Hours:</strong> {clinicDetails[clinic.id]?.settings?.workingHours?.start || '09:00'} - {clinicDetails[clinic.id]?.settings?.workingHours?.end || '18:00'}</div>
+                            <div><strong>Slot Duration:</strong> {clinicDetails[clinic.id]?.settings?.slotDuration || 30} mins</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {clinicSummaries.length === 0 && <div className="empty-state">No clinics yet</div>}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <div className="admin-layout">
+            <section className="admin-panel admin-wide">
+              <div className="admin-panel-header">
+                <div className="admin-panel-title">User Accounts</div>
+                {/* <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openUserModal()}
+                  disabled={!DataStore.canCreateUsers}
+                  title={DataStore.canCreateUsers ? 'Create user' : 'Enable VITE_ENABLE_ADMIN_CREATE_USERS'}
+                >
+                  + Create User
+                </button> */}
+              </div>
+              {!DataStore.canCreateUsers && (
+                <div className="form-hint" style={{ marginBottom: 12 }}>
+                  Create users in Supabase Auth, or set VITE_ENABLE_ADMIN_CREATE_USERS=true to enable this button.
+                </div>
+              )}
+              {userSuccessMessage && (
+                <div className="admin-success-banner" style={{
+                  marginBottom: 16,
+                  padding: '12px 16px',
+                  backgroundColor: '#ecfdf5',
+                  color: '#047857',
+                  borderRadius: '8px',
+                  border: '1px solid #a7f3d0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                  {userSuccessMessage}
+                </div>
+              )}
+              <div className="admin-list">
+                {users.map((user) => (
+                  <div key={user.id} className="admin-list-item">
+                    <div>
+                      <div className="admin-row-title">{user.username || user.email || 'Unknown user'}</div>
+                      <div className="admin-row-sub">
+                        {user.role}{' '}
+                        {user.clinicId
+                          ? `- ${clinics.find((c) => c.id === user.clinicId)?.name || 'Clinic'}`
+                          : '- Unassigned'}
+                      </div>
+                      <div className="admin-list-meta">
+                        <span>{user.name || 'Unnamed'}</span>
+                        <span>{user.status || 'active'}</span>
+                      </div>
+                    </div>
+                    <div className="admin-list-actions">
+                      {!user.clinicId && (
+                        <button className="btn btn-primary btn-sm" onClick={() => openUserModal(user)}>
+                          Assign Clinic
+                        </button>
+                      )}
+                      <button className="btn btn-secondary btn-sm" onClick={() => openUserModal(user)}>
+                        Manage
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {users.length === 0 && <div className="empty-state">No users yet</div>}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {activeTab === 'activity' && (
+          <div className="admin-layout">
+            <section className="admin-panel admin-wide">
+              <div className="admin-panel-title">Admin History</div>
+              {adminActivity.length === 0 && <div className="empty-state">No activity logged</div>}
+              {adminActivity.map((log) => (
+                <div key={log.id} className="admin-row">
+                  <div>
+                    <div className="admin-row-title">{log.description}</div>
+                    <div className="admin-row-sub">{new Date(log.timestamp).toLocaleString()}</div>
+                  </div>
+                  <span className="admin-tag">{log.type.replace('_', ' ')}</span>
+                </div>
+              ))}
+            </section>
+          </div>
+        )}
+      </main>
 
       {modalState.type === 'clinic' && (
         <Modal title={modalState.mode === 'edit' ? 'Edit Clinic' : 'Add Clinic'} onClose={closeModal}>
@@ -859,7 +882,7 @@ export default function AdminDashboard({ onLogout }) {
               </div>
             </div>
             <div className="form-group">
-              <label className="form-label">Clinic {userForm.role === 'dentist' ? '(required)' : '(optional)'}</label>
+              <label className="form-label">Clinic (optional; assign later)</label>
               <select className="form-select" value={userForm.clinicId} onChange={(e) => setUserForm({ ...userForm, clinicId: e.target.value })}>
                 <option value="">Unassigned</option>
                 {clinics.map((clinic) => (
@@ -880,8 +903,13 @@ export default function AdminDashboard({ onLogout }) {
             )}
             <div className="flex-1"></div>
             <button type="button" className="btn btn-secondary" onClick={closeModal}>Cancel</button>
-            <button type="button" className="btn btn-primary" onClick={handleUserSubmit}>
-              {modalState.mode === 'edit' ? 'Save User' : 'Add User'}
+            <button type="button" className="btn btn-primary" onClick={handleUserSubmit} disabled={userLoading}>
+              {userLoading ? (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: 12, height: 12, border: '2px solid currentColor', borderRightColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }}></span>
+                  Saving...
+                </span>
+              ) : (modalState.mode === 'edit' ? 'Save User' : 'Add User')}
             </button>
           </div>
         </Modal>
@@ -894,7 +922,158 @@ export default function AdminDashboard({ onLogout }) {
           <div className="modal-body">
             {detailError && <div className="form-error" style={{ marginBottom: 12 }}>{detailError}</div>}
             {detailModal.type === 'appointments' ? (
-              <div className="empty-state">Appointment edits are available in the clinic view.</div>
+              <div className="admin-appointment-view">
+                <div className="admin-filter-container">
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="admin-search-icon"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input
+                      type="text"
+                      placeholder="Search patient, dentist or treatment..."
+                      className="admin-search-input"
+                      style={{ paddingLeft: 36, width: '100%' }}
+                      value={appointmentFilter.query}
+                      onChange={(e) => setAppointmentFilter(prev => ({ ...prev, query: e.target.value }))}
+                    />
+                  </div>
+                  <select
+                    className="admin-select"
+                    value={appointmentFilter.status}
+                    onChange={(e) => setAppointmentFilter(prev => ({ ...prev, status: e.target.value }))}
+                    style={{ minWidth: 140 }}
+                  >
+                    <option value="all">All Status</option>
+                    {[...new Set((clinicDetails[detailModal.clinicId]?.appointments || []).map(a => a.status).filter(Boolean))].sort().map(status => (
+                      <option key={status} value={status}>
+                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {(() => {
+                  const details = clinicDetails[detailModal.clinicId] || {};
+                  const rawAppointments = details.appointments || [];
+                  const patients = details.patients || [];
+                  const staff = details.staff || [];
+                  const treatments = details.treatments || [];
+                  const rooms = details.rooms || [];
+
+                  // 1. Hydrate appointments
+                  const appointments = rawAppointments.map(apt => {
+                    const patient = patients.find(p => p.id === apt.patientId);
+                    const dentist = staff.find(s => s.id === apt.dentistId);
+                    const treatment = treatments.find(t => t.id === apt.treatmentId);
+                    const room = rooms.find(r => r.id === apt.roomId);
+                    return {
+                      ...apt,
+                      patient,
+                      dentist,
+                      treatment,
+                      room,
+                      patientName: patient?.name || 'Unknown Patient',
+                      dentistName: dentist?.name || 'Unassigned',
+                      treatmentName: treatment?.name || 'Checkup'
+                    };
+                  });
+
+                  // 2. Filter
+                  const filtered = appointments.filter(apt => {
+                    const matchesStatus = appointmentFilter.status === 'all' || apt.status === appointmentFilter.status;
+                    const q = appointmentFilter.query.toLowerCase();
+                    const matchesQuery = !q ||
+                      apt.patientName.toLowerCase().includes(q) ||
+                      apt.dentistName.toLowerCase().includes(q) ||
+                      apt.treatmentName.toLowerCase().includes(q);
+                    return matchesStatus && matchesQuery;
+                  });
+
+                  // 3. Group by month
+                  const grouped = filtered.reduce((acc, apt) => {
+                    const monthKey = apt.date.slice(0, 7); // YYYY-MM
+                    if (!acc[monthKey]) acc[monthKey] = [];
+                    acc[monthKey].push(apt);
+                    return acc;
+                  }, {});
+
+                  const sortedMonths = Object.keys(grouped).sort().reverse();
+
+                  if (filtered.length === 0) return <div className="empty-state">No matching appointments</div>;
+
+                  return (
+                    <div className="admin-month-groups">
+                      {sortedMonths.map(month => {
+                        const dateObj = new Date(month + '-01');
+                        const monthLabel = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
+                        const isExpanded = expandedAppointmentMonths[month];
+
+                        return (
+                          <div key={month} className="admin-month-wrapper">
+                            <div
+                              className="admin-month-header"
+                              onClick={() => setExpandedAppointmentMonths(prev => ({ ...prev, [month]: !prev[month] }))}
+                            >
+                              <span>{monthLabel} <span className="admin-count-badge">({grouped[month].length})</span></span>
+                              <span className="admin-collapse-icon">{isExpanded ? '▼' : '▶'}</span>
+                            </div>
+                            {isExpanded && (
+                              <div className="admin-month-body">
+                                {grouped[month].map(apt => {
+                                  const normalizedStatus = (apt.status || 'confirmed').toLowerCase().replace(' ', '-');
+                                  return (
+                                    <div key={apt.id} className="admin-appointment-card">
+                                      <div className="admin-card-header-row">
+                                        <div className="admin-time-group">
+                                          <span className="admin-time-start">{apt.startTime}</span>
+                                          <span className="admin-time-separator">—</span>
+                                          <span className="admin-time-end">{apt.endTime || '?'}</span>
+                                          {apt.duration && <span className="admin-duration-badge">{apt.duration}m</span>}
+                                        </div>
+                                        <span className={`status-pill status-${normalizedStatus}`}>{apt.status}</span>
+                                      </div>
+
+                                      <div className="admin-card-details-grid">
+                                        {/* First Column */}
+                                        <div>
+                                          <div className="admin-detail-label">Patient</div>
+                                          <div className="admin-detail-value">{apt.patientName}</div>
+                                          {apt.patient?.phone && <div className="admin-detail-sub">{apt.patient.phone}</div>}
+                                        </div>
+
+                                        {/* Second Column */}
+                                        <div>
+                                          <div className="admin-detail-label">Treatment</div>
+                                          <div className="admin-detail-value">{apt.treatmentName}</div>
+                                          <div className="admin-detail-sub">with {apt.dentistName}</div>
+                                        </div>
+                                      </div>
+
+                                      {/* Extra details row */}
+                                      <div className="admin-card-footer">
+                                        {apt.room && (
+                                          <div className="admin-room-info">
+                                            <div className="admin-room-dot" style={{ background: apt.room.color || '#cbd5e1' }}></div>
+                                            <span className="admin-room-name">Room: {apt.room.name}</span>
+                                          </div>
+                                        )}
+                                        {apt.notes && (
+                                          <div className="admin-notes">
+                                            Note: "{apt.notes}"
+                                          </div>
+                                        )}
+                                      </div>
+
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
             ) : (
               <>
                 <div className="admin-entity-list">
@@ -1024,6 +1203,19 @@ export default function AdminDashboard({ onLogout }) {
           </div>
         </Modal>
       )}
+      <ConfirmDialog
+        open={confirmDialog.open}
+        title={confirmDialog.type === 'clinic' ? 'Delete clinic' : 'Delete user'}
+        description={
+          confirmDialog.type === 'clinic'
+            ? 'Deleting a clinic will remove all related data for that clinic. This action cannot be undone.'
+            : 'Deleting a user will revoke their access to the platform.'
+        }
+        confirmLabel={confirmDialog.type === 'clinic' ? 'Delete clinic' : 'Delete user'}
+        confirmVariant="danger"
+        onClose={() => setConfirmDialog({ open: false, type: '', payload: null })}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   );
 }

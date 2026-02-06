@@ -14,7 +14,7 @@ const mapSettings = (row) => ({
 
 export async function getSettings(clinicId) {
   const { data, error } = await supabase
-    .from("settings")
+    .from("apt_settings")
     .select("*")
     .eq("clinic_id", clinicId)
     .maybeSingle();
@@ -35,7 +35,7 @@ export async function saveSettings(clinicId, settings) {
   };
 
   const { data, error } = await supabase
-    .from("settings")
+    .from("apt_settings")
     .upsert(payload, { onConflict: "clinic_id" })
     .select("*")
     .single();

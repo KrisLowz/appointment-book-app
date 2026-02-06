@@ -5,7 +5,7 @@ import { getInitials } from '../utils/people';
 
 const PAGE_SIZE = 4;
 
-export default function TodayView({ appointments, patients, rooms, treatments, onAppointmentSelect }) {
+export default function TodayView({ appointments, patients, rooms, treatments, onAppointmentSelect, onNewAppointment }) {
   const isoToday = todayISO();
   const [page, setPage] = useState(1);
   const todaysAppointments = useMemo(() => {
@@ -85,6 +85,11 @@ export default function TodayView({ appointments, patients, rooms, treatments, o
           <div className="today-empty-state">
             <h3 className="today-empty-state-title">No appointments today</h3>
             <p>Schedule a new appointment to see it here.</p>
+            {onNewAppointment && (
+              <button type="button" className="btn btn-primary btn-sm" onClick={onNewAppointment}>
+                New Appointment
+              </button>
+            )}
           </div>
         )}
         {pagedAppointments.map((apt) => {
