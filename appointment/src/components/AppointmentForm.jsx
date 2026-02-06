@@ -22,6 +22,7 @@ export default function AppointmentForm({
 }) {
   const { addToast } = useToast();
   const defaultDuration = settings && settings.slotDuration ? settings.slotDuration : 30;
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     patientId: patients[0] ? patients[0].id : '',
     roomId: rooms[0] ? rooms[0].id : '',
@@ -176,12 +177,25 @@ export default function AppointmentForm({
         }
       }
     }
-    onSave({
+
+    setIsSubmitting(true);
+    // Wrap async call
+    Promise.resolve(onSave({
       ...form,
       endTime,
       status: form.status || 'confirmed',
       id: initialData && initialData.id ? initialData.id : form.id,
-    });
+    }))
+      .catch((err) => {
+        // Error handling is mostly done in parent (AddToast), but we catch here to ensure finall runs
+        console.error("Save failed", err);
+      })
+      .finally(() => {
+        // Only set submitting to false if we are still mounted/didn't close
+        // Note: If onSave closes the modal, this setState might run on unmounted component
+        // But React 18 handles this gracefully usually.
+        setIsSubmitting(false);
+      });
   };
 
   const handlePatientSelect = (patientId) => {
@@ -459,7 +473,7 @@ export default function AppointmentForm({
 
         <div className="modal-footer">
           {showCreditWarning && (
-            <div style={{ color: 'red', fontWeight: 'bold', marginRight: 'auto' }}>
+            <div style={{ color: 'var(--danger)', fontWeight: 'bold', marginRight: 'auto', fontSize: 'var(--font-size-sm)' }}>
               Insufficient Credits (0)
             </div>
           )}
@@ -468,16 +482,20 @@ export default function AppointmentForm({
             <button
               type="button"
               className="btn btn-danger"
+              disabled={isSubmitting}
               onClick={() => onDelete && onDelete(form)}
             >
               Delete
             </button>
           )}
-          <button type="button" className="btn btn-secondary" onClick={onClose}>
+          <button type="button" className="btn btn-secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button type="submit" className="btn btn-primary" disabled={showCreditWarning}>
-            {isEditing ? 'Save Appointment' : 'Create Appointment'}
+          <button type="submit" className="btn btn-primary" disabled={showCreditWarning || isSubmitting}>
+            {isSubmitting
+              ? (isEditing ? 'Saving...' : 'Creating...')
+              : (isEditing ? 'Save Appointment' : 'Create Appointment')
+            }
           </button>
         </div>
       </form>

@@ -79,17 +79,18 @@ function AppContent() {
     }
     let isActive = true;
     const loadClinicSlug = async () => {
-      const { data, error } = await supabase
-        .from('apt_clinics')
-        .select('slug')
-        .eq('id', activeClinicId)
-        .single();
-      if (!isActive) return;
-      if (error || !data?.slug) {
+      try {
+        const data = await DataStore.getClinicById(activeClinicId);
+        if (!isActive) return;
+        if (!data?.slug) {
+          setBookingLink('');
+          return;
+        }
+        setBookingLink(`${window.location.origin}/book/${data.slug}`);
+      } catch (error) {
+        console.error('Failed to load clinic slug:', error);
         setBookingLink('');
-        return;
       }
-      setBookingLink(`${window.location.origin}/book/${data.slug}`);
     };
     loadClinicSlug();
     return () => {
@@ -178,18 +179,22 @@ function AppContent() {
 
   const handleSaveAppointment = (data) => {
     if (data.id) {
-      updateAppointment(data.id, data);
-      setShowAppointmentModal(false);
-      setAppointmentDefaults(null);
+      return updateAppointment(data.id, data).then(() => {
+        setShowAppointmentModal(false);
+        setAppointmentDefaults(null);
+      });
     } else {
       // Logic is now inside useDataStore.addAppointment
-      addAppointment(data)
+      return addAppointment(data)
         .then(() => {
           setShowAppointmentModal(false);
           setAppointmentDefaults(null);
         })
         .catch((err) => {
+          // If we want to show the specific error (like "Insufficient credits"), re-throw or handle here
           addToast(err.message || "Failed to create appointment", 'error');
+          // Important: re-throw so form knows it failed!
+          throw err;
         });
     }
   };
@@ -309,7 +314,7 @@ function AppContent() {
 
   if (authRole === 'admin') {
     return (
-      <AdminDashboard onLogout={signOut} />
+      <AdminDashboard onLogout={signOut} theme={theme} setTheme={setTheme} />
     );
   }
 
@@ -354,6 +359,7 @@ function AppContent() {
           title={viewTitle}
           onNewAppointment={() => setShowAppointmentModal(true)}
           onToggleSidebar={toggleSidebar}
+          isSidebarOpen={sidebarOpen}
           credits={credits}
           onOpenCredits={() => setShowCreditModal(true)}
         />
