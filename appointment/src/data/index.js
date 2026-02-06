@@ -64,6 +64,10 @@ const DataStore = {
     return Clinics.getClinics();
   },
 
+  async getClinicById(id) {
+    return Clinics.getClinicById(id);
+  },
+
   async addClinic(clinic) {
     const created = await Clinics.addClinic(clinic);
     await Activity.addAdminActivity({

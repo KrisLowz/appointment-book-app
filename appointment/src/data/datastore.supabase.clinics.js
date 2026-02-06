@@ -34,6 +34,18 @@ export async function getClinics() {
   return (data || []).map(mapClinic);
 }
 
+export async function getClinicById(id) {
+  const headers = await getHeaders();
+
+  const response = await fetch(`${API_URL}/clinics?id=${id}`, { headers });
+  if (!response.ok) throw new Error(await response.text());
+
+  const data = await response.json();
+  // Worker returns object or null
+  if (!data) return null;
+  return mapClinic(data);
+}
+
 export async function addClinic(clinic) {
   const payload = {
     name: clinic.name,

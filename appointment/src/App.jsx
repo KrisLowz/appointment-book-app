@@ -79,17 +79,18 @@ function AppContent() {
     }
     let isActive = true;
     const loadClinicSlug = async () => {
-      const { data, error } = await supabase
-        .from('apt_clinics')
-        .select('slug')
-        .eq('id', activeClinicId)
-        .single();
-      if (!isActive) return;
-      if (error || !data?.slug) {
+      try {
+        const data = await DataStore.getClinicById(activeClinicId);
+        if (!isActive) return;
+        if (!data?.slug) {
+          setBookingLink('');
+          return;
+        }
+        setBookingLink(`${window.location.origin}/book/${data.slug}`);
+      } catch (error) {
+        console.error('Failed to load clinic slug:', error);
         setBookingLink('');
-        return;
       }
-      setBookingLink(`${window.location.origin}/book/${data.slug}`);
     };
     loadClinicSlug();
     return () => {
